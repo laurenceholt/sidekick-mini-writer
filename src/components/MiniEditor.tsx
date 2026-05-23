@@ -1,6 +1,6 @@
-import { CopyPlus, GripVertical, Plus, Trash2 } from "lucide-react";
+import { CopyPlus, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { MarkdownView } from "./MarkdownView";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { makeStepId, renumberSteps } from "../lib/ids";
 import type { KnowledgeComponent, Mini, MiniStep } from "../lib/types";
 
@@ -14,11 +14,22 @@ interface MiniEditorProps {
   onDeleteMini: (id: string) => void;
 }
 
+type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "notes" | "actions";
+
 export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini }: MiniEditorProps) {
   const selectedMini = minis.find((mini) => mini.id === selectedMiniId) ?? minis[0];
   const [showStepIds, setShowStepIds] = useState(true);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>({
+    drag: 34,
+    step: 92,
+    instruction: 330,
+    interaction: 430,
+    hint: 210,
+    notes: 210,
+    actions: 42,
+  });
 
   if (!selectedMini) {
     return (
@@ -65,6 +76,53 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
   };
 
   const dragTargetIndex = dropIndex ?? selectedMini.steps.length;
+  const visibleColumnWidth =
+    columnWidths.drag +
+    (showStepIds ? columnWidths.step : 0) +
+    columnWidths.instruction +
+    columnWidths.interaction +
+    columnWidths.hint +
+    columnWidths.notes +
+    columnWidths.actions;
+
+  const startResize = (key: ColumnKey, event: ReactMouseEvent) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = columnWidths[key];
+    const minWidth: Record<ColumnKey, number> = {
+      drag: 34,
+      step: 72,
+      instruction: 190,
+      interaction: 260,
+      hint: 150,
+      notes: 150,
+      actions: 42,
+    };
+
+    const handleMove = (moveEvent: globalThis.MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setColumnWidths((current) => ({
+        ...current,
+        [key]: Math.max(minWidth[key], startWidth + delta),
+      }));
+    };
+    const handleUp = () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  };
+
+  const ResizeHandle = ({ column }: { column: ColumnKey }) => (
+    <span
+      className="column-resizer"
+      onMouseDown={(event) => startResize(column, event)}
+      role="separator"
+      aria-label={`Resize ${column} column`}
+    />
+  );
 
   return (
     <main className="main-panel">
@@ -74,9 +132,6 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
           <h2>{kc.title}</h2>
         </div>
         <div className="toolbar-actions">
-          <button className="secondary-button" onClick={() => setShowStepIds((value) => !value)}>
-            {showStepIds ? "Hide IDs" : "Show IDs"}
-          </button>
           <button className="secondary-button" onClick={onAddMini} disabled={minis.length >= 4}>
             <CopyPlus size={17} />
             Add mini
@@ -112,15 +167,52 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
       </div>
 
       <div className="step-table-wrap">
-        <table className="step-table">
+        <table className="step-table" style={{ minWidth: visibleColumnWidth }}>
+          <colgroup>
+            <col style={{ width: columnWidths.drag }} />
+            {showStepIds && <col style={{ width: columnWidths.step }} />}
+            <col style={{ width: columnWidths.instruction }} />
+            <col style={{ width: columnWidths.interaction }} />
+            <col style={{ width: columnWidths.hint }} />
+            <col style={{ width: columnWidths.notes }} />
+            <col style={{ width: columnWidths.actions }} />
+          </colgroup>
           <thead>
             <tr>
-              <th className="drag-head" aria-label="Reorder" />
-              {showStepIds && <th>Step</th>}
-              <th>Instruction</th>
-              <th>Interaction</th>
-              <th>Hint text</th>
-              <th>Agent notes</th>
+              <th className="drag-head" aria-label="Reorder">
+                {!showStepIds && (
+                  <button className="header-icon-button" aria-label="Show step IDs" onClick={() => setShowStepIds(true)}>
+                    <Eye size={14} />
+                  </button>
+                )}
+              </th>
+              {showStepIds && (
+                <th className="resizable-head">
+                  <div className="head-content">
+                    <span>Step</span>
+                    <button className="header-icon-button" aria-label="Hide step IDs" onClick={() => setShowStepIds(false)}>
+                      <EyeOff size={14} />
+                    </button>
+                  </div>
+                  <ResizeHandle column="step" />
+                </th>
+              )}
+              <th className="resizable-head">
+                Instruction
+                <ResizeHandle column="instruction" />
+              </th>
+              <th className="resizable-head">
+                Interaction
+                <ResizeHandle column="interaction" />
+              </th>
+              <th className="resizable-head">
+                Hint text
+                <ResizeHandle column="hint" />
+              </th>
+              <th className="resizable-head">
+                Agent notes
+                <ResizeHandle column="notes" />
+              </th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -167,7 +259,6 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                 {showStepIds && <td className="step-id">{step.id}</td>}
                 <td>
                   <textarea value={step.instruction} onChange={(event) => updateStep(step.id, { instruction: event.target.value })} />
-                  <MarkdownView content={step.instruction} />
                 </td>
                 <td>
                   <textarea value={step.interaction} onChange={(event) => updateStep(step.id, { interaction: event.target.value })} />

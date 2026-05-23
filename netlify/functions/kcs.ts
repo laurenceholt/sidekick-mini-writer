@@ -54,7 +54,7 @@ Use this JSON shape:
   "notes_md": string
 }
 
-Use markdown and LaTeX delimiters with backticks for inline math text.`,
+Use plain text math such as 0.4 x 15 = 6. Do not use math markup delimiters.`,
     fallback,
   );
 }

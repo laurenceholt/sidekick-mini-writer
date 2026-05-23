@@ -16,13 +16,9 @@
     "@supabase/supabase-js": "^2.87.1",
     "@tailwindcss/vite": "^4.1.18",
     "@vitejs/plugin-react": "^5.1.1",
-    "katex": "^0.16.25",
     "lucide-react": "^0.563.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-markdown": "^10.1.0",
-    "rehype-katex": "^7.0.1",
-    "remark-math": "^6.0.0",
     "tailwindcss": "^4.1.18",
     "zod": "^4.2.0"
   },

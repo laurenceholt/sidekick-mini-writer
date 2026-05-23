@@ -13,7 +13,7 @@ export const seedKc: KnowledgeComponent = {
   condition: "Given an equation with numerical expressions on both sides.",
   response: "Determine whether the two sides are equal (true) or not equal (false).",
   workedExampleMd:
-    "To decide whether $0.4x = 20$ is true when $x = 15$, substitute 15 for $x$.\n\n$0.4 \\times 15 = 6$, and $6 \\ne 20$, so the equation is **false**.",
+    "To decide whether 0.4x = 20 is true when x = 15, substitute 15 for x.\n\n0.4 x 15 = 6, and 6 is not equal to 20, so the equation is false.",
   standards: [
     {
       code: "6.EE.A.2c",
@@ -37,16 +37,16 @@ export const seedKc: KnowledgeComponent = {
 };
 
 const rawStepRows: [string, string, string, string, string][] = [
-  ["Look at $3 + 4 = 7$. Is this equation true or false?", "Two expression cards: $3 + 4$ and $7$. User chooses True or False.", "True", "Evaluate the left side. $3 + 4$ equals 7.", ""],
-  ["Look at $9 - 2 = 8$. Is this equation true or false?", "Two expression cards: $9 - 2$ and $8$. User chooses True or False.", "False", "$9 - 2$ equals 7, not 8.", ""],
-  ["An equation is true when both sides have the same value. Is $6 \\times 3 = 18$ true or false?", "User chooses True or False.", "True", "Find the value of the left side first.", ""],
-  ["Is $0.4 \\times 15 = 20$ true or false?", "User chooses True or False.", "False", "$0.4 \\times 15 = 6$. Does 6 equal 20?", "Keep this close to the attached worked example."],
-  ["Substitute $\\frac{3}{8}$ for $y$. Is $y + \\frac{1}{2} = \\frac{7}{8}$ true or false?", "Show substitution; user chooses True or False.", "True", "$\\frac{1}{2}$ is the same as $\\frac{4}{8}$.", ""],
-  ["Substitute 5 for $n$. Is $2n + 1 = 11$ true or false?", "User enters value, then chooses True or False.", "11; True", "Replace $n$ with 5.", ""],
-  ["Substitute 4 for $x$. Is $3x = 10$ true or false?", "User enters value, then chooses True or False.", "12; False", "$3 \\times 4 = 12$.", ""],
-  ["Which value makes $a + 6 = 14$ true: 7 or 8?", "Two choice buttons: 7 and 8.", "8", "The value must make the left side equal 14.", ""],
-  ["Which value makes $0.4x = 20$ true: 15 or 50?", "Two choice buttons: 15 and 50.", "50", "$0.4 \\times 50 = 20$.", ""],
-  ["Explain why $0.4 \\times 15 = 20$ is false in one sentence.", "Short text response.", "Because $0.4 \\times 15 = 6$, and $6 \\ne 20$.", "Start by evaluating the left side.", "This is the final reflection; keep it short."],
+  ["Look at 3 + 4 = 7. Is this equation true or false?", "Two expression cards: 3 + 4 and 7. User chooses True or False.", "True", "Evaluate the left side. 3 + 4 equals 7.", ""],
+  ["Look at 9 - 2 = 8. Is this equation true or false?", "Two expression cards: 9 - 2 and 8. User chooses True or False.", "False", "9 - 2 equals 7, not 8.", ""],
+  ["An equation is true when both sides have the same value. Is 6 x 3 = 18 true or false?", "User chooses True or False.", "True", "Find the value of the left side first.", ""],
+  ["Is 0.4 x 15 = 20 true or false?", "User chooses True or False.", "False", "0.4 x 15 = 6. Does 6 equal 20?", "Keep this close to the attached worked example."],
+  ["Substitute 3/8 for y. Is y + 1/2 = 7/8 true or false?", "Show substitution; user chooses True or False.", "True", "1/2 is the same as 4/8.", ""],
+  ["Substitute 5 for n. Is 2n + 1 = 11 true or false?", "User enters value, then chooses True or False.", "11; True", "Replace n with 5.", ""],
+  ["Substitute 4 for x. Is 3x = 10 true or false?", "User enters value, then chooses True or False.", "12; False", "3 x 4 = 12.", ""],
+  ["Which value makes a + 6 = 14 true: 7 or 8?", "Two choice buttons: 7 and 8.", "8", "The value must make the left side equal 14.", ""],
+  ["Which value makes 0.4x = 20 true: 15 or 50?", "Two choice buttons: 15 and 50.", "50", "0.4 x 50 = 20.", ""],
+  ["Explain why 0.4 x 15 = 20 is false in one sentence.", "Short text response.", "Because 0.4 x 15 = 6, and 6 is not equal to 20.", "Start by evaluating the left side.", "This is the final reflection; keep it short."],
 ];
 
 const rawSteps: MiniStep[] = rawStepRows.map(([instruction, interaction, targetResponse, hint, agentNotes], index) => ({

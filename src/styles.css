@@ -268,25 +268,6 @@ h2 {
   margin-top: 4px;
 }
 
-.markdown-view {
-  margin-top: 8px;
-  border-left: 4px solid #ef5a3c;
-  border-radius: 6px;
-  background: #fff8f6;
-  padding: 8px 10px;
-  color: #252537;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.markdown-view p {
-  margin: 0 0 8px;
-}
-
-.markdown-view p:last-child {
-  margin-bottom: 0;
-}
-
 .standards-list {
   display: flex;
   flex-direction: column;
@@ -408,7 +389,7 @@ h2 {
 
 .step-table {
   width: 100%;
-  min-width: 980px;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -421,6 +402,47 @@ h2 {
   color: #475467;
   font-size: 12px;
   text-align: left;
+}
+
+.resizable-head {
+  position: sticky;
+}
+
+.head-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.header-icon-button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #667085;
+}
+
+.header-icon-button:hover {
+  background: #eef3f7;
+  color: #1d2939;
+}
+
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  z-index: 3;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.column-resizer:hover {
+  background: rgb(87 180 119 / 24%);
 }
 
 .step-table th,

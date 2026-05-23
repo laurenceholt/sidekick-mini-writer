@@ -39,7 +39,7 @@ Return JSON:
   ]
 }
 
-Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short.`,
+Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup.`,
       fallback,
     );
     const mini = await createMini(kc, miniIndex, generated.title, generated.steps, "generate", "Generated from KC.");

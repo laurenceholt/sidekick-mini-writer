@@ -1,5 +1,4 @@
 import { BookOpen, FilePlus2, Sparkles } from "lucide-react";
-import { MarkdownView } from "./MarkdownView";
 import type { KnowledgeComponent } from "../lib/types";
 
 interface KcPanelProps {
@@ -83,7 +82,6 @@ export function KcPanel({ kcs, selectedKc, dirty, onSelect, onChange, onCreate, 
           Worked example
         </div>
         <textarea className="textarea" value={selectedKc.workedExampleMd} onChange={(event) => onChange({ ...selectedKc, workedExampleMd: event.target.value })} />
-        <MarkdownView content={selectedKc.workedExampleMd} />
       </section>
 
       <section>
