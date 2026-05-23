@@ -91,8 +91,11 @@ export function KcPanel({ kcs, selectedKc, dirty, onSelect, onChange, onCreate, 
         <div className="standards-list">
           {selectedKc.standards.map((standard) => (
             <div className="standard-pill" key={standard.code}>
-              <strong>{standard.code}</strong>
-              <span>{standard.label}</span>
+              <div>
+                <strong>{standard.code}</strong>
+                <span>{standard.label}</span>
+              </div>
+              <p>{standard.description}</p>
             </div>
           ))}
         </div>

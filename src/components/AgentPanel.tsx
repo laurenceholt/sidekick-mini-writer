@@ -21,7 +21,7 @@ export function AgentPanel({ mini, messages, onSend, onProcessNotes, onRevert }:
       </div>
 
       <div className="chat-log">
-        {messages.length === 0 && <p className="muted">Ask for a revision, or process the step notes from the main table.</p>}
+        {messages.length === 0 && <p className="muted">Ask for a revision or process step notes.</p>}
         {messages.map((message) => (
           <div key={message.id} className={message.role === "writer" ? "chat-message writer" : "chat-message agent"}>
             {message.content}
@@ -41,10 +41,10 @@ export function AgentPanel({ mini, messages, onSend, onProcessNotes, onRevert }:
           }
         }}
       >
-        <textarea name="prompt" placeholder="Ask for a revision to the selected mini" />
+        <textarea name="prompt" placeholder="Ask the agent to revise this mini" />
         <button className="primary-button" type="submit">
           <Wand2 size={17} />
-          Revise mini
+          Send to agent
         </button>
       </form>
 

@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, CopyPlus, Plus, Trash2 } from "lucide-react";
+import { CopyPlus, GripVertical, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { MarkdownView } from "./MarkdownView";
 import { makeStepId, renumberSteps } from "../lib/ids";
 import type { KnowledgeComponent, Mini, MiniStep } from "../lib/types";
@@ -15,6 +16,9 @@ interface MiniEditorProps {
 
 export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini }: MiniEditorProps) {
   const selectedMini = minis.find((mini) => mini.id === selectedMiniId) ?? minis[0];
+  const [showStepIds, setShowStepIds] = useState(true);
+  const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   if (!selectedMini) {
     return (
@@ -49,14 +53,18 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
     onChangeMini({ ...selectedMini, steps }, true);
   };
 
-  const moveStep = (stepId: string, direction: -1 | 1) => {
-    const index = selectedMini.steps.findIndex((step) => step.id === stepId);
-    const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= selectedMini.steps.length) return;
+  const moveDraggedStep = (targetIndex: number | null) => {
+    if (!draggedStepId || targetIndex === null) return;
+    const fromIndex = selectedMini.steps.findIndex((step) => step.id === draggedStepId);
+    if (fromIndex < 0) return;
     const next = [...selectedMini.steps];
-    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    const [moved] = next.splice(fromIndex, 1);
+    const adjustedIndex = targetIndex > fromIndex ? targetIndex - 1 : targetIndex;
+    next.splice(adjustedIndex, 0, moved);
     onChangeMini({ ...selectedMini, steps: renumberSteps(kc, selectedMini.miniIndex, next) }, true);
   };
+
+  const dragTargetIndex = dropIndex ?? selectedMini.steps.length;
 
   return (
     <main className="main-panel">
@@ -66,6 +74,9 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
           <h2>{kc.title}</h2>
         </div>
         <div className="toolbar-actions">
+          <button className="secondary-button" onClick={() => setShowStepIds((value) => !value)}>
+            {showStepIds ? "Hide IDs" : "Show IDs"}
+          </button>
           <button className="secondary-button" onClick={onAddMini} disabled={minis.length >= 4}>
             <CopyPlus size={17} />
             Add mini
@@ -104,7 +115,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
         <table className="step-table">
           <thead>
             <tr>
-              <th>Step</th>
+              <th className="drag-head" aria-label="Reorder" />
+              {showStepIds && <th>Step</th>}
               <th>Instruction</th>
               <th>Interaction</th>
               <th>Hint text</th>
@@ -113,9 +125,46 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
             </tr>
           </thead>
           <tbody>
-            {selectedMini.steps.map((step) => (
-              <tr key={step.id}>
-                <td className="step-id">{step.id}</td>
+            {selectedMini.steps.map((step, index) => (
+              <tr
+                key={step.id}
+                className={[
+                  draggedStepId === step.id ? "dragging-row" : "",
+                  draggedStepId && dragTargetIndex === index ? "drop-before" : "",
+                ].filter(Boolean).join(" ")}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  const midpoint = bounds.top + bounds.height / 2;
+                  setDropIndex(event.clientY < midpoint ? index : index + 1);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  moveDraggedStep(dropIndex);
+                  setDraggedStepId(null);
+                  setDropIndex(null);
+                }}
+              >
+                <td className="drag-cell">
+                  <button
+                    className="drag-handle"
+                    draggable
+                    aria-label={`Drag step ${step.id}`}
+                    onDragStart={(event) => {
+                      setDraggedStepId(step.id);
+                      setDropIndex(index);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", step.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedStepId(null);
+                      setDropIndex(null);
+                    }}
+                  >
+                    <GripVertical size={16} />
+                  </button>
+                </td>
+                {showStepIds && <td className="step-id">{step.id}</td>}
                 <td>
                   <textarea value={step.instruction} onChange={(event) => updateStep(step.id, { instruction: event.target.value })} />
                   <MarkdownView content={step.instruction} />
@@ -134,18 +183,17 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   <textarea value={step.agentNotes} placeholder="Ask the agent to revise this step" onChange={(event) => updateStep(step.id, { agentNotes: event.target.value })} />
                 </td>
                 <td className="row-actions">
-                  <button className="icon-button" aria-label="Move step up" onClick={() => moveStep(step.id, -1)}>
-                    <ArrowUp size={16} />
-                  </button>
-                  <button className="icon-button" aria-label="Move step down" onClick={() => moveStep(step.id, 1)}>
-                    <ArrowDown size={16} />
-                  </button>
                   <button className="icon-button danger" aria-label="Delete step" onClick={() => deleteStep(step.id)}>
                     <Trash2 size={16} />
                   </button>
                 </td>
               </tr>
             ))}
+            {draggedStepId && dragTargetIndex === selectedMini.steps.length && (
+              <tr className="drop-after">
+                <td colSpan={showStepIds ? 7 : 6} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
