@@ -4,7 +4,7 @@ import type { KnowledgeComponent, Mini, MiniStep, MiniVersion, WorkspaceData } f
 const now = "2026-05-23T00:00:00.000Z";
 
 export const seedKc: KnowledgeComponent = {
-  id: "kc_truth_equation",
+  id: "11111111-1111-4111-8111-111111111111",
   title: "Interpret Truth of Equation",
   slug: "interpret_true_false_equation",
   grade: 6,
@@ -115,8 +115,8 @@ export const seedSteps = rawSteps.map((step, index) => ({
 }));
 
 const seedVersion: MiniVersion = {
-  id: "version_truth_equation_1",
-  miniId: "mini_truth_equation_1",
+  id: "33333333-3333-4333-8333-333333333333",
+  miniId: "22222222-2222-4222-8222-222222222222",
   versionNumber: 1,
   source: "seed",
   summary: "Initial seed mini from attached truth-of-equation materials.",
@@ -125,7 +125,7 @@ const seedVersion: MiniVersion = {
 };
 
 export const seedMini: Mini = {
-  id: "mini_truth_equation_1",
+  id: "22222222-2222-4222-8222-222222222222",
   kcId: seedKc.id,
   miniIndex: 1,
   title: "Truth of equations",

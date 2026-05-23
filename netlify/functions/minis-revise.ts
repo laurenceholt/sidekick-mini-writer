@@ -2,6 +2,7 @@ import type { Config, Context } from "@netlify/functions";
 import { askAnthropicForJson } from "./_shared/ai";
 import { getMini, logFeedback, replaceMiniSteps } from "./_shared/db";
 import { fallbackRevision } from "./_shared/localAi";
+import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { MiniStep } from "./_shared/types";
 
@@ -14,7 +15,10 @@ export default async (req: Request, context: Context) => {
     if (!prompt) return error("Prompt is required", 400);
     const fallback = fallbackRevision(mini.steps, prompt);
     const result = await askAnthropicForJson<{ steps: MiniStep[]; response: string; summary: string }>(
-      "You revise Sidekick mini lesson steps. Return only valid JSON.",
+      `You revise Sidekick mini lesson steps. Return only valid JSON.
+
+Preserve the writer's intent while applying this skill:
+${MINI_LESSON_SKILL}`,
       `Revise these mini lesson steps according to the writer request.
 
 Writer request: ${prompt}

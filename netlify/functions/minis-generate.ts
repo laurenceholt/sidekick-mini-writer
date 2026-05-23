@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { askAnthropicForJson } from "./_shared/ai";
 import { createMini, getKc, listMinis, logFeedback } from "./_shared/db";
 import { fallbackSteps } from "./_shared/localAi";
+import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { MiniStep } from "./_shared/types";
 
@@ -16,7 +17,10 @@ export default async (req: Request) => {
     const miniIndex = Math.min(existing.length + 1, 4);
     const fallback = { title: `${kc.title} mini ${miniIndex}`, steps: fallbackSteps(kc, miniIndex) };
     const generated = await askAnthropicForJson<{ title: string; steps: MiniStep[] }>(
-      "You write Sidekick mini lessons for grades 3-8. Return only valid JSON.",
+      `You write Sidekick mini lessons for grades 3-8. Return only valid JSON.
+
+Follow this skill exactly:
+${MINI_LESSON_SKILL}`,
       `Create one mini lesson for this KC.
 
 KC: ${kc.title}
@@ -39,7 +43,7 @@ Return JSON:
   ]
 }
 
-Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup.`,
+Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers.`,
       fallback,
     );
     const mini = await createMini(kc, miniIndex, generated.title, generated.steps, "generate", "Generated from KC.");

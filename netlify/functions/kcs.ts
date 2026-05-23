@@ -2,6 +2,7 @@ import type { Config, Context } from "@netlify/functions";
 import { askAnthropicForJson } from "./_shared/ai";
 import { getKc, insertKc, listKcs, updateKc } from "./_shared/db";
 import { fallbackKc } from "./_shared/localAi";
+import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { KnowledgeComponent } from "./_shared/types";
 
@@ -37,7 +38,10 @@ export const config: Config = {
 export async function generateKcFromTitle(title: string) {
   const fallback = fallbackKc(title);
   return askAnthropicForJson(
-    "You generate concise math knowledge components for grades 3-8. Return only valid JSON.",
+    `You generate concise math knowledge components for grades 3-8. Return only valid JSON.
+
+Use this lesson-writing guidance when choosing examples and standards:
+${MINI_LESSON_SKILL}`,
     `Create a knowledge component for this title: ${title}
 
 Use this JSON shape:
