@@ -7,7 +7,7 @@ export default async (req: Request) => {
   try {
     if (req.method !== "GET") return error("Method not allowed", 405);
     const url = getEnv("SUPABASE_URL");
-    const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const key = getEnv("SUPABASE_SECRET_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !key) return json([]);
     const db = createClient(url, key);
     const { data, error: dbError } = await db.from("mini_writer_feedback_log").select("*").order("created_at", { ascending: false }).limit(200);

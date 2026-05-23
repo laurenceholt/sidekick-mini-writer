@@ -21,4 +21,4 @@ Set these environment variables in Netlify:
 - `ANTHROPIC_API_KEY`
 - `ANTHROPIC_MODEL` (defaults to `claude-opus-4-7`)
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_SECRET_KEY` preferred, or `SUPABASE_SERVICE_ROLE_KEY` as a fallback

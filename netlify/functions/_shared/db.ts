@@ -13,7 +13,7 @@ const TABLES = {
 
 function client() {
   const url = getEnv("SUPABASE_URL");
-  const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const key = getEnv("SUPABASE_SECRET_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) return null;
   return createClient(url, key);
 }
