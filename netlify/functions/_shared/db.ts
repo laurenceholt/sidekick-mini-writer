@@ -4,6 +4,13 @@ import { getEnv } from "./env";
 import { seedKc, seedMini } from "./seed";
 import type { KnowledgeComponent, Mini, MiniStep, MiniVersion } from "./types";
 
+const TABLES = {
+  kcs: "mini_writer_kcs",
+  minis: "mini_writer_minis",
+  versions: "mini_writer_mini_versions",
+  feedback: "mini_writer_feedback_log",
+} as const;
+
 function client() {
   const url = getEnv("SUPABASE_URL");
   const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -47,7 +54,7 @@ function kcRow(kc: Partial<KnowledgeComponent>) {
 export async function listKcs() {
   const db = client();
   if (!db) return [seedKc];
-  const { data, error } = await db.from("kcs").select("*").order("updated_at", { ascending: false });
+  const { data, error } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
   if (error) throw error;
   if (data.length) return data.map(toKc);
   return [await ensureSeedData(db)];
@@ -56,7 +63,7 @@ export async function listKcs() {
 export async function getKc(id: string) {
   const db = client();
   if (!db) return id === seedKc.id ? seedKc : null;
-  const { data, error } = await db.from("kcs").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await db.from(TABLES.kcs).select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!data && id === seedKc.id) return ensureSeedData(db);
   if (!data) return null;
@@ -66,7 +73,7 @@ export async function getKc(id: string) {
 export async function insertKc(data: Record<string, any>) {
   const db = client();
   if (!db) return { ...seedKc, ...toKcLike(data), id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  const { data: inserted, error } = await db.from("kcs").insert(data).select("*").single();
+  const { data: inserted, error } = await db.from(TABLES.kcs).insert(data).select("*").single();
   if (error) throw error;
   return toKc(inserted);
 }
@@ -89,7 +96,7 @@ function toKcLike(row: Record<string, any>) {
 export async function updateKc(kc: KnowledgeComponent) {
   const db = client();
   if (!db) return kc;
-  const { data, error } = await db.from("kcs").update(kcRow(kc)).eq("id", kc.id).select("*").single();
+  const { data, error } = await db.from(TABLES.kcs).update(kcRow(kc)).eq("id", kc.id).select("*").single();
   if (error) throw error;
   return toKc(data);
 }
@@ -124,14 +131,14 @@ function toMini(row: Record<string, any>, versions: MiniVersion[]): Mini {
 export async function listMinis(kcId: string) {
   const db = client();
   if (!db) return kcId === seedKc.id ? [seedMini] : [];
-  const { data: minis, error } = await db.from("minis").select("*").eq("kc_id", kcId).order("mini_index");
+  const { data: minis, error } = await db.from(TABLES.minis).select("*").eq("kc_id", kcId).order("mini_index");
   if (error) throw error;
   if (!minis.length && kcId === seedKc.id) {
     await ensureSeedData(db);
     return [seedMini];
   }
   const miniIds = minis.map((mini) => mini.id);
-  const { data: versions, error: versionError } = await db.from("mini_versions").select("*").in("mini_id", miniIds).order("version_number");
+  const { data: versions, error: versionError } = await db.from(TABLES.versions).select("*").in("mini_id", miniIds).order("version_number");
   if (versionError) throw versionError;
   return minis.map((mini) => toMini(mini, (versions ?? []).filter((version) => version.mini_id === mini.id).map(toVersion)));
 }
@@ -139,9 +146,9 @@ export async function listMinis(kcId: string) {
 export async function getMini(id: string) {
   const db = client();
   if (!db) return id === seedMini.id ? seedMini : null;
-  const { data: mini, error } = await db.from("minis").select("*").eq("id", id).single();
+  const { data: mini, error } = await db.from(TABLES.minis).select("*").eq("id", id).single();
   if (error) throw error;
-  const { data: versions, error: versionError } = await db.from("mini_versions").select("*").eq("mini_id", id).order("version_number");
+  const { data: versions, error: versionError } = await db.from(TABLES.versions).select("*").eq("mini_id", id).order("version_number");
   if (versionError) throw versionError;
   return toMini(mini, (versions ?? []).map(toVersion));
 }
@@ -165,14 +172,14 @@ export async function createMini(kc: KnowledgeComponent, miniIndex: number, titl
     } satisfies Mini;
   }
   const { data: mini, error } = await db
-    .from("minis")
+    .from(TABLES.minis)
     .insert({ kc_id: kc.id, mini_index: miniIndex, title })
     .select("*")
     .single();
   if (error) throw error;
   const version = await createVersion(mini.id, steps, source, summary);
   const { data: updated, error: updateError } = await db
-    .from("minis")
+    .from(TABLES.minis)
     .update({ current_version_id: version.id })
     .eq("id", mini.id)
     .select("*")
@@ -184,10 +191,10 @@ export async function createMini(kc: KnowledgeComponent, miniIndex: number, titl
 export async function updateMini(mini: Mini) {
   const db = client();
   if (!db) return mini;
-  const { data, error } = await db.from("minis").update({ title: mini.title }).eq("id", mini.id).select("*").single();
+  const { data, error } = await db.from(TABLES.minis).update({ title: mini.title }).eq("id", mini.id).select("*").single();
   if (error) throw error;
   const version = await createVersion(mini.id, mini.steps, "manual", "Manual edit autosave.");
-  await db.from("minis").update({ current_version_id: version.id }).eq("id", mini.id);
+  await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id);
   return toMini({ ...data, current_version_id: version.id }, [...mini.versions, version]);
 }
 
@@ -204,9 +211,9 @@ export async function createVersion(miniId: string, steps: MiniStep[], source: s
       createdAt: new Date().toISOString(),
     } satisfies MiniVersion;
   }
-  const { count } = await db.from("mini_versions").select("*", { count: "exact", head: true }).eq("mini_id", miniId);
+  const { count } = await db.from(TABLES.versions).select("*", { count: "exact", head: true }).eq("mini_id", miniId);
   const { data, error } = await db
-    .from("mini_versions")
+    .from(TABLES.versions)
     .insert({ mini_id: miniId, version_number: (count ?? 0) + 1, source, summary, steps })
     .select("*")
     .single();
@@ -221,7 +228,7 @@ export async function replaceMiniSteps(mini: Mini, steps: MiniStep[], source: st
     return { ...mini, steps, currentVersionId: version.id, versions: [...mini.versions, version], updatedAt: version.createdAt };
   }
   const version = await createVersion(mini.id, steps, source, summary);
-  const { data, error } = await db.from("minis").update({ current_version_id: version.id }).eq("id", mini.id).select("*").single();
+  const { data, error } = await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id).select("*").single();
   if (error) throw error;
   return toMini(data, [...mini.versions, version]);
 }
@@ -229,11 +236,11 @@ export async function replaceMiniSteps(mini: Mini, steps: MiniStep[], source: st
 export async function logFeedback(entry: Record<string, any>) {
   const db = client();
   if (!db) return;
-  await db.from("feedback_log").insert(entry);
+  await db.from(TABLES.feedback).insert(entry);
 }
 
 async function ensureSeedData(db: SupabaseClient<any>) {
-  const { data: existing, error: existingError } = await db.from("kcs").select("*").eq("id", seedKc.id).maybeSingle();
+  const { data: existing, error: existingError } = await db.from(TABLES.kcs).select("*").eq("id", seedKc.id).maybeSingle();
   if (existingError) throw existingError;
   if (existing) return toKc(existing);
 
@@ -250,11 +257,11 @@ async function ensureSeedData(db: SupabaseClient<any>) {
     standards: seedKc.standards,
     notes_md: seedKc.notesMd,
   };
-  const { data: inserted, error: insertError } = await db.from("kcs").insert(seedRow).select("*").single();
+  const { data: inserted, error: insertError } = await db.from(TABLES.kcs).insert(seedRow).select("*").single();
   if (insertError) throw insertError;
 
   const { data: mini, error: miniError } = await db
-    .from("minis")
+    .from(TABLES.minis)
     .insert({ id: seedMini.id, kc_id: seedKc.id, mini_index: seedMini.miniIndex, title: seedMini.title })
     .select("*")
     .single();
@@ -262,7 +269,7 @@ async function ensureSeedData(db: SupabaseClient<any>) {
 
   const version = seedMini.versions[0];
   const { data: insertedVersion, error: versionError } = await db
-    .from("mini_versions")
+    .from(TABLES.versions)
     .insert({
       id: version.id,
       mini_id: mini.id,
@@ -275,6 +282,6 @@ async function ensureSeedData(db: SupabaseClient<any>) {
     .single();
   if (versionError) throw versionError;
 
-  await db.from("minis").update({ current_version_id: insertedVersion.id }).eq("id", mini.id);
+  await db.from(TABLES.minis).update({ current_version_id: insertedVersion.id }).eq("id", mini.id);
   return toKc(inserted);
 }

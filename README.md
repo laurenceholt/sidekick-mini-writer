@@ -12,7 +12,7 @@ Without environment variables, the app uses seeded local fallback data in the br
 
 ## Supabase
 
-Create the tables in `supabase/schema.sql`. The browser never receives the Supabase service role key; all persisted writes go through Netlify Functions.
+Create the prefixed `mini_writer_*` tables in `supabase/schema.sql`. The browser never receives the Supabase service role key; all persisted writes go through Netlify Functions.
 
 ## Netlify
 

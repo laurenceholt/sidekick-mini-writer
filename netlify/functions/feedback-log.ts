@@ -10,7 +10,7 @@ export default async (req: Request) => {
     const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !key) return json([]);
     const db = createClient(url, key);
-    const { data, error: dbError } = await db.from("feedback_log").select("*").order("created_at", { ascending: false }).limit(200);
+    const { data, error: dbError } = await db.from("mini_writer_feedback_log").select("*").order("created_at", { ascending: false }).limit(200);
     if (dbError) throw dbError;
     return json(data);
   } catch (err) {
