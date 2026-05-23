@@ -1,0 +1,115 @@
+import { BookOpen, FilePlus2, Sparkles } from "lucide-react";
+import { MarkdownView } from "./MarkdownView";
+import type { KnowledgeComponent } from "../lib/types";
+
+interface KcPanelProps {
+  kcs: KnowledgeComponent[];
+  selectedKc: KnowledgeComponent;
+  dirty: boolean;
+  onSelect: (id: string) => void;
+  onChange: (kc: KnowledgeComponent) => void;
+  onCreate: (title: string) => void;
+  onGenerateMini: () => void;
+}
+
+export function KcPanel({ kcs, selectedKc, dirty, onSelect, onChange, onCreate, onGenerateMini }: KcPanelProps) {
+  return (
+    <aside className="panel left-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">Knowledge component</p>
+          <h1>mini-writer</h1>
+        </div>
+        <span className={dirty ? "save-state saving" : "save-state"}>{dirty ? "Saving" : "Saved"}</span>
+      </div>
+
+      <label className="field-label" htmlFor="kc-select">Previous KCs</label>
+      <select id="kc-select" className="select" value={selectedKc.id} onChange={(event) => onSelect(event.target.value)}>
+        {kcs.map((kc) => (
+          <option key={kc.id} value={kc.id}>{kc.title}</option>
+        ))}
+      </select>
+
+      <form
+        className="new-kc"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const input = form.elements.namedItem("title") as HTMLInputElement;
+          if (input.value.trim()) {
+            onCreate(input.value.trim());
+            form.reset();
+          }
+        }}
+      >
+        <input name="title" className="input" placeholder="New KC name" />
+        <button className="icon-button" aria-label="Create KC" type="submit">
+          <FilePlus2 size={18} />
+        </button>
+      </form>
+
+      <div className="kc-title-row">
+        <input
+          className="title-input"
+          value={selectedKc.title}
+          onChange={(event) => onChange({ ...selectedKc, title: event.target.value })}
+        />
+        <div className="id-badge">{selectedKc.grade}-{selectedKc.unit}-{selectedKc.lesson}</div>
+      </div>
+
+      <div className="grade-grid">
+        {(["grade", "unit", "lesson"] as const).map((field) => (
+          <label key={field} className="mini-field">
+            <span>{field}</span>
+            <input
+              type="number"
+              min={1}
+              value={selectedKc[field]}
+              onChange={(event) => onChange({ ...selectedKc, [field]: Number(event.target.value) })}
+            />
+          </label>
+        ))}
+      </div>
+
+      <label className="field-label">Condition</label>
+      <textarea className="textarea compact" value={selectedKc.condition} onChange={(event) => onChange({ ...selectedKc, condition: event.target.value })} />
+
+      <label className="field-label">Response</label>
+      <textarea className="textarea compact" value={selectedKc.response} onChange={(event) => onChange({ ...selectedKc, response: event.target.value })} />
+
+      <section className="example-block">
+        <div className="section-title">
+          <BookOpen size={16} />
+          Worked example
+        </div>
+        <textarea className="textarea" value={selectedKc.workedExampleMd} onChange={(event) => onChange({ ...selectedKc, workedExampleMd: event.target.value })} />
+        <MarkdownView content={selectedKc.workedExampleMd} />
+      </section>
+
+      <section>
+        <div className="section-title">CCSS math</div>
+        <div className="standards-list">
+          {selectedKc.standards.map((standard) => (
+            <div className="standard-pill" key={standard.code}>
+              <strong>{standard.code}</strong>
+              <span>{standard.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <label className="field-label">Writer notes</label>
+      <textarea
+        className="textarea notes"
+        value={selectedKc.notesMd}
+        placeholder="Markdown notes for this KC"
+        onChange={(event) => onChange({ ...selectedKc, notesMd: event.target.value })}
+      />
+
+      <button className="primary-button" onClick={onGenerateMini}>
+        <Sparkles size={18} />
+        Generate Mini
+      </button>
+    </aside>
+  );
+}
