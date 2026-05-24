@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { makeStepId, renumberSteps } from "../lib/ids";
 import type { KnowledgeComponent, Mini, MiniStep } from "../lib/types";
+import { MarkdownText } from "./MarkdownText";
 
 interface MiniEditorProps {
   kc: KnowledgeComponent;
@@ -26,6 +27,7 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
   const [showStepIds, setShowStepIds] = useState(true);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>({
     drag: 34,
     step: 92,
@@ -297,7 +299,19 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   <textarea value={step.hint} onChange={(event) => updateStep(step.id, { hint: event.target.value })} />
                 </td>
                 <td>
-                  <textarea value={step.agentNotes} placeholder="Ask the agent to revise this step" onChange={(event) => updateStep(step.id, { agentNotes: event.target.value })} />
+                  {step.agentNotes.trim() && editingNoteId !== step.id ? (
+                    <button className="markdown-note-preview" type="button" onClick={() => setEditingNoteId(step.id)}>
+                      <MarkdownText text={step.agentNotes} />
+                    </button>
+                  ) : (
+                    <textarea
+                      value={step.agentNotes}
+                      placeholder="Ask the agent to revise this step"
+                      autoFocus={editingNoteId === step.id}
+                      onBlur={() => setEditingNoteId(null)}
+                      onChange={(event) => updateStep(step.id, { agentNotes: event.target.value })}
+                    />
+                  )}
                 </td>
                 <td className="row-actions">
                   <button className="icon-button danger" aria-label="Delete step" onClick={() => deleteStep(step.id)}>

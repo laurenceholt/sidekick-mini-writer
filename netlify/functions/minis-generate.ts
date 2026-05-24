@@ -14,7 +14,7 @@ export default async (req: Request) => {
     if (!kc) return error("KC not found", 404);
     const existing = await listMinis(kcId);
     const miniIndex = Math.min(existing.length + 1, 4);
-    const generated = await askAnthropicForJson<{ title: string; steps: MiniStep[] }>(
+    const generated = await askAnthropicForJson<{ title: string; rationale: string[]; steps: MiniStep[] }>(
       `You write Sidekick mini lessons for grades 3-8. Return only valid JSON.
 
 Follow this skill exactly:
@@ -29,6 +29,9 @@ Worked example: ${kc.workedExampleMd}
 Return JSON:
 {
   "title": string,
+  "rationale": [
+    string
+  ],
   "steps": [
     {
       "id": string,
@@ -41,11 +44,16 @@ Return JSON:
   ]
 }
 
-Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers.`,
+Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers.
+
+Write 3-5 short rationale bullets explaining the hook, sequencing, interaction choices, and how the mini follows the skill.`,
+      { enableWebSearch: true },
     );
     const mini = await createMini(kc, miniIndex, generated.title, generated.steps, "generate", "Generated from KC.");
-    await logFeedback({ kc_id: kc.id, mini_id: mini.id, event_type: "generate_mini", agent_response: "Generated mini.", after_version_id: mini.currentVersionId });
-    return json(mini, { status: 201 });
+    const rationale = Array.isArray(generated.rationale) && generated.rationale.length ? generated.rationale : ["Built a short practice arc from warm-up to synthesis."];
+    const response = `Done. Claude generated a mini for this KC.\n\n**Rationale**\n${rationale.map((item) => `- ${item}`).join("\n")}`;
+    await logFeedback({ kc_id: kc.id, mini_id: mini.id, event_type: "generate_mini", agent_response: response, after_version_id: mini.currentVersionId });
+    return json({ mini, response }, { status: 201 });
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");
   }

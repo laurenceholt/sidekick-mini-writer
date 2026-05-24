@@ -1,6 +1,11 @@
 import { seedWorkspace } from "./seed";
 import type { AgentMessage, KnowledgeComponent, Mini, WorkspaceData } from "./types";
 
+export interface GenerateMiniResult {
+  mini: Mini;
+  response: string;
+}
+
 function formatApiError(path: string, body: string) {
   try {
     const parsed = JSON.parse(body) as { error?: string };
@@ -38,7 +43,7 @@ export async function fetchWorkspace(): Promise<WorkspaceData> {
 export const api = {
   createKc: (title: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ title }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
-  generateMini: (kcId: string) => request<Mini>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
+  generateMini: (kcId: string) => request<GenerateMiniResult>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),
   reviseMini: (miniId: string, prompt: string, history: AgentMessage[]) =>
     request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/revise`, {

@@ -1,4 +1,5 @@
 import { MessageSquareText, Send } from "lucide-react";
+import { MarkdownText } from "./MarkdownText";
 import type { AgentMessage, Mini } from "../lib/types";
 
 interface AgentPanelProps {
@@ -25,7 +26,7 @@ export function AgentPanel({ mini, messages, busyLabel, onSend }: AgentPanelProp
         {messages.length === 0 && <p className="muted">Ask for revisions, ideas, or type “process notes”.</p>}
         {messages.map((message) => (
           <div key={message.id} className={message.role === "writer" ? "chat-message writer" : "chat-message agent"}>
-            {message.content}
+            <MarkdownText text={message.content} />
           </div>
         ))}
         {busyLabel && (

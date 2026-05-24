@@ -681,6 +681,22 @@ h2 {
   font-size: 13px;
 }
 
+.markdown-note-preview {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffefa;
+  color: var(--minis-ink);
+  padding: 7px;
+  text-align: left;
+}
+
+.markdown-note-preview:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+}
+
 .target-row {
   display: flex;
   align-items: center;
@@ -767,7 +783,41 @@ h2 {
   padding: 7px 9px;
   font-size: 12px;
   line-height: 1.35;
-  white-space: pre-wrap;
+}
+
+.markdown-text {
+  white-space: normal;
+}
+
+.markdown-text p {
+  margin: 0;
+}
+
+.markdown-text p + p,
+.markdown-text ul + p,
+.markdown-text p + ul {
+  margin-top: 6px;
+}
+
+.markdown-text ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.markdown-text li + li {
+  margin-top: 3px;
+}
+
+.markdown-text strong {
+  font-weight: 900;
+}
+
+.markdown-text code {
+  border-radius: 5px;
+  background: rgb(24 20 15 / 7%);
+  padding: 1px 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.94em;
 }
 
 .chat-message.writer {

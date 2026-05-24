@@ -114,10 +114,10 @@ export default function App() {
     if (!selectedKc) return;
     setAgentBusyLabel("Asking Claude to generate a mini...");
     try {
-      const mini = await api.generateMini(selectedKc.id);
+      const { mini, response } = await api.generateMini(selectedKc.id);
       updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
       setSelectedMiniId(mini.id);
-      setMessages((current) => [...current, addMessage("agent", "Done. Claude generated a mini for this KC.")]);
+      setMessages((current) => [...current, addMessage("agent", response)]);
     } catch (err) {
       setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`)]);
     } finally {

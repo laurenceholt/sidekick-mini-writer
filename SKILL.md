@@ -21,6 +21,12 @@ Between lessons you may also include *interstitials*: short opt-in story or cult
 
 A mini-lesson moves through four overlapping phases. The phase boundaries are loose; what matters is the shape of the curve.
 
+### Hook and interest
+
+Before drafting, look for a concrete hook that makes the KC feel worth doing. If web search is available, search for how teachers, curricula, museums, or math education writers introduce the idea, then adapt the best fit rather than copying it.
+
+The hook should put the math inside a small situation the student can picture: two receipts to check whether a store rang something up correctly, a balance scale for equality, a number line walk for integers, or a row of skyscrapers to introduce the coordinate plane. Use the hook to shape the opening steps and illustrations, not as a long preface.
+
 ### Warm-up (early steps)
 
 The student does the new thing before being told what it's called. Plot a -3 before the word "negative" appears. Scaffolding is at its highest: number line visible, multiple choice with two options, range kept small. The first one or two steps should feel almost easy.
@@ -28,6 +34,8 @@ The student does the new thing before being told what it's called. Plot a -3 bef
 ### Naming and concept (middle steps)
 
 Once the student has felt the idea a few times, name it. The lessons typically use "By the way…" or "Mathematicians call this…" — a casual aside that lands the vocabulary now that there's something to attach it to. Give a phonetic pronunciation on first use of a new term: "median (MEE-dee-un)," "histogram (HIST-o-gram)."
+
+After a concept is introduced, add a very short stamping sentence that gives the idea a memorable shape. Keep it brief and vivid: "Equations are sentences in the language of math -- they can be true or false." Use this sparingly, once the student has already done the thing.
 
 Build patterns through analogy and contrast. Present pairs that vary on exactly one dimension (-3 vs -5, then -2 vs 2, then -5 vs -2) so the student notices the structure for themselves.
 
@@ -90,6 +98,8 @@ Small cartoons are part of the texture, not an afterthought. They appear when a 
 
 Make them specific to the math context. A grape for the grape-catching dot plot. A soccer ball for the goals plot. A pillow for the sleep-hours plot. A homework clock reading 55 minutes for the homework dot plot. A pair of paper-cutout dolls joined at the hands for the siblings plot. They reinforce the scenario rather than decorating it.
 
+Use cartoons and visual metaphors to make abstract ideas easier to enter: a balance scale for equality, a number line for signed numbers, a row of skyscrapers for the coordinate plane, receipts for checking equation truth, thermometers for temperature, or a map/elevator for vertical position.
+
 Keep them small and unobtrusive — "in the corner of the page" or "on the page" is the standard phrasing. They should not compete with the math.
 
 Let humor live here more than in the prose. A rock singer with icicles for a canceled-cold-concert inequality problem. An overstuffed backpack with books spilling out for backpack weights. A small desert cartoon for a Death Valley temperature plot. The flavor of a problem comes from the picture.
@@ -101,6 +111,8 @@ Specify the illustration in the Interaction column, not the Instruction. Phrasin
 ## Voice and tone
 
 Read a few existing steps out loud. They sound like a friend showing a student a number trick on a napkin, not a textbook. That's the target.
+
+Keep vocabulary at least one grade level below the KC grade whenever possible. For a grade 6 KC, write so a grade 5 student can read the prompt without help. Prefer short common words over formal math prose unless the term is the point of the lesson.
 
 Things that help:
 
