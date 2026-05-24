@@ -28,20 +28,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function fetchWorkspace(): Promise<WorkspaceData> {
+export async function fetchWorkspace(writerName: string): Promise<WorkspaceData> {
   try {
-    const kcs = await request<KnowledgeComponent[]>("/api/kcs");
+    const kcs = await request<KnowledgeComponent[]>(`/api/kcs?writer=${encodeURIComponent(writerName)}`);
     const minis = await Promise.all(
       kcs.map((kc) => request<Mini[]>(`/api/minis?kcId=${encodeURIComponent(kc.id)}`)),
     );
     return { kcs, minis: minis.flat() };
   } catch {
-    return seedWorkspace;
+    return writerName === "Laurence" ? seedWorkspace : { kcs: [], minis: [] };
   }
 }
 
 export const api = {
-  createKc: (title: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ title }) }),
+  listWriters: () => request<string[]>("/api/writers"),
+  createKc: (title: string, writerName: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ title, writerName }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
   generateMini: (kcId: string) => request<GenerateMiniResult>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),

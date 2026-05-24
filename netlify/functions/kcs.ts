@@ -13,11 +13,12 @@ export default async (req: Request, context: Context) => {
         const kc = await getKc(id);
         return kc ? json(kc) : error("KC not found", 404);
       }
-      return json(await listKcs());
+      const url = new URL(req.url);
+      return json(await listKcs(url.searchParams.get("writer") ?? undefined));
     }
     if (req.method === "POST") {
       const body = (await req.json()) as Record<string, any>;
-      const created = await insertKc(body);
+      const created = await insertKc(body, body.writerName);
       return json(created, { status: 201 });
     }
     if (req.method === "PATCH" && id) {

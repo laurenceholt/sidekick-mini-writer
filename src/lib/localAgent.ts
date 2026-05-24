@@ -7,6 +7,7 @@ export function generateKcDraft(title: string): KnowledgeComponent {
   const standards = standardsForTitle(title);
   return {
     id: createId("kc"),
+    writerName: "Laurence",
     title,
     slug: slugify(title),
     grade: 6,

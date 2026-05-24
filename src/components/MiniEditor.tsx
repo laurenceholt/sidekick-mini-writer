@@ -1,4 +1,4 @@
-import { CopyPlus, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
+import { CopyPlus, Eye, EyeOff, GripVertical, Link2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { makeStepId, renumberSteps } from "../lib/ids";
@@ -6,7 +6,7 @@ import type { KnowledgeComponent, Mini, MiniStep } from "../lib/types";
 import { MarkdownText } from "./MarkdownText";
 
 interface MiniEditorProps {
-  kc: KnowledgeComponent;
+  kc: KnowledgeComponent | null;
   minis: Mini[];
   selectedMiniId: string | null;
   onSelectMini: (id: string) => void;
@@ -37,6 +37,15 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
     notes: 210,
     actions: 42,
   });
+
+  if (!kc) {
+    return (
+      <main className="main-panel empty-panel">
+        <h2>No KC selected</h2>
+        <p>Create a KC for this writer to start authoring minis.</p>
+      </main>
+    );
+  }
 
   if (!selectedMini) {
     return (
@@ -142,6 +151,9 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
           </div>
         </div>
         <div className="toolbar-actions">
+          <button className="icon-button" aria-label="Copy KC link" onClick={() => navigator.clipboard?.writeText(window.location.href)}>
+            <Link2 size={17} />
+          </button>
           <button className="secondary-button" onClick={onAddMini} disabled={minis.length >= 4}>
             <CopyPlus size={17} />
             Add mini

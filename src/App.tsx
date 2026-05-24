@@ -12,6 +12,10 @@ import { seedWorkspace } from "./lib/seed";
 import { addVersion, revertMini } from "./lib/versions";
 import type { AgentMessage, KnowledgeComponent, Mini, WorkspaceData } from "./lib/types";
 
+const DEFAULT_WRITER = "Laurence";
+const WRITER_KEY = "mini-writer:selected-writer";
+const KC_PANEL_COLLAPSED_KEY = "mini-writer:kc-panel-collapsed";
+
 function addMessage(role: AgentMessage["role"], content: string): AgentMessage {
   return {
     id: createId("message"),
@@ -25,11 +29,27 @@ function errorMessage(err: unknown) {
   return err instanceof Error ? err.message : "Unexpected error";
 }
 
-const KC_PANEL_COLLAPSED_KEY = "mini-writer:kc-panel-collapsed";
+function readWriterFromUrl() {
+  return new URLSearchParams(window.location.search).get("writer") || localStorage.getItem(WRITER_KEY) || DEFAULT_WRITER;
+}
+
+function readKcIdFromUrl() {
+  const match = window.location.pathname.match(/^\/kc\/([^/]+)/);
+  return match?.[1] ?? null;
+}
+
+function setBrowserKcUrl(writerName: string, kcId: string | null) {
+  const params = new URLSearchParams();
+  params.set("writer", writerName);
+  const path = kcId ? `/kc/${kcId}` : "/";
+  window.history.replaceState(null, "", `${path}?${params.toString()}`);
+}
 
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceData>(seedWorkspace);
-  const [selectedKcId, setSelectedKcId] = useState(seedWorkspace.kcs[0].id);
+  const [writerName, setWriterName] = useState(readWriterFromUrl);
+  const [writers, setWriters] = useState<string[]>([readWriterFromUrl()]);
+  const [selectedKcId, setSelectedKcId] = useState<string | null>(readKcIdFromUrl() ?? seedWorkspace.kcs[0].id);
   const [selectedMiniId, setSelectedMiniId] = useState<string | null>(seedWorkspace.minis[0].id);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -37,41 +57,58 @@ export default function App() {
   const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
+  const initialKcId = useRef(readKcIdFromUrl());
 
   useEffect(() => {
-    const local = loadLocalWorkspace();
+    let active = true;
+    localStorage.setItem(WRITER_KEY, writerName);
+    const local = loadLocalWorkspace(writerName);
     setWorkspace(local);
-    setSelectedKcId(local.kcs[0]?.id ?? seedWorkspace.kcs[0].id);
-    setSelectedMiniId(local.minis.find((mini) => mini.kcId === local.kcs[0]?.id)?.id ?? null);
+    const preferredId = initialKcId.current;
+    const localKcId = (preferredId && local.kcs.some((kc) => kc.id === preferredId) ? preferredId : local.kcs[0]?.id) ?? null;
+    setSelectedKcId(localKcId);
+    setSelectedMiniId(local.minis.find((mini) => mini.kcId === localKcId)?.id ?? null);
 
-    fetchWorkspace().then((remote) => {
-      if (remote.kcs.length) {
-        setWorkspace(remote);
-        setSelectedKcId(remote.kcs[0].id);
-        setSelectedMiniId(remote.minis.find((mini) => mini.kcId === remote.kcs[0].id)?.id ?? null);
-      }
+    api.listWriters().then((remoteWriters) => {
+      if (!active) return;
+      setWriters([...new Set([...remoteWriters, writerName])].sort((a, b) => a.localeCompare(b)));
+    }).catch(() => undefined);
+
+    fetchWorkspace(writerName).then((remote) => {
+      if (!active) return;
+      setWorkspace(remote);
+      const remoteKcId = (preferredId && remote.kcs.some((kc) => kc.id === preferredId) ? preferredId : remote.kcs[0]?.id) ?? null;
+      setSelectedKcId(remoteKcId);
+      setSelectedMiniId(remote.minis.find((mini) => mini.kcId === remoteKcId)?.id ?? null);
     });
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [writerName]);
 
   useEffect(() => {
     if (!dirty) return;
     const timeout = window.setTimeout(() => {
-      saveLocalWorkspace(workspace);
+      saveLocalWorkspace(workspace, writerName);
       setDirty(false);
     }, 500);
     return () => window.clearTimeout(timeout);
-  }, [dirty, workspace]);
+  }, [dirty, workspace, writerName]);
 
   useEffect(() => {
     localStorage.setItem(KC_PANEL_COLLAPSED_KEY, String(kcPanelCollapsed));
   }, [kcPanelCollapsed]);
 
-  const selectedKc = workspace.kcs.find((kc) => kc.id === selectedKcId) ?? workspace.kcs[0];
+  const selectedKc = workspace.kcs.find((kc) => kc.id === selectedKcId) ?? null;
   const minisForKc = useMemo(
     () => workspace.minis.filter((mini) => mini.kcId === selectedKc?.id).sort((a, b) => a.miniIndex - b.miniIndex),
     [workspace.minis, selectedKc?.id],
   );
   const selectedMini = minisForKc.find((mini) => mini.id === selectedMiniId) ?? minisForKc[0] ?? null;
+
+  useEffect(() => {
+    setBrowserKcUrl(writerName, selectedKc?.id ?? null);
+  }, [writerName, selectedKc?.id]);
 
   const updateWorkspace = (updater: (data: WorkspaceData) => WorkspaceData) => {
     setWorkspace((current) => {
@@ -82,7 +119,7 @@ export default function App() {
   };
 
   const handleKcChange = (kc: KnowledgeComponent) => {
-    const updated = { ...kc, updatedAt: new Date().toISOString() };
+    const updated = { ...kc, writerName, updatedAt: new Date().toISOString() };
     updateWorkspace((data) => ({
       ...data,
       kcs: data.kcs.map((item) => (item.id === updated.id ? updated : item)),
@@ -99,7 +136,7 @@ export default function App() {
   const handleCreateKc = async (title: string) => {
     setAgentBusyLabel("Asking Claude to draft the KC...");
     try {
-      const kc = await api.createKc(title);
+      const kc = await api.createKc(title, writerName);
       updateWorkspace((data) => ({ ...data, kcs: [...data.kcs, kc] }));
       setSelectedKcId(kc.id);
       setSelectedMiniId(null);
@@ -208,9 +245,21 @@ export default function App() {
     }
   };
 
-  if (!selectedKc) {
-    return <div className="boot">Loading mini-writer...</div>;
-  }
+  const handleWriterSelect = (value: string) => {
+    if (value !== "__new__") {
+      setWriterName(value);
+      setMessages([]);
+      initialKcId.current = null;
+      return;
+    }
+    const next = window.prompt("Writer name");
+    const clean = next?.trim();
+    if (!clean) return;
+    setWriters((current) => [...new Set([...current, clean])].sort((a, b) => a.localeCompare(b)));
+    setWriterName(clean);
+    setMessages([]);
+    initialKcId.current = null;
+  };
 
   return (
     <div className="app-frame">
@@ -224,6 +273,15 @@ export default function App() {
           <span className="brand-divider" aria-hidden />
           <h1>mini-writer</h1>
         </div>
+        <label className="writer-switcher">
+          <span>Writer</span>
+          <select value={writerName} onChange={(event) => handleWriterSelect(event.target.value)}>
+            {writers.map((writer) => (
+              <option key={writer} value={writer}>{writer}</option>
+            ))}
+            <option value="__new__">New writer</option>
+          </select>
+        </label>
       </header>
       <main className={kcPanelCollapsed ? "app-shell kc-panel-collapsed" : "app-shell"}>
         <KcPanel
@@ -234,6 +292,7 @@ export default function App() {
           onSelect={(id) => {
             setSelectedKcId(id);
             setSelectedMiniId(workspace.minis.find((mini) => mini.kcId === id)?.id ?? null);
+            initialKcId.current = null;
           }}
           onChange={handleKcChange}
           onCreate={handleCreateKc}

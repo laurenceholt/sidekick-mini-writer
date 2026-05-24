@@ -8,6 +8,7 @@ export interface Standard {
 
 export interface KnowledgeComponent {
   id: string;
+  writerName: string;
   title: string;
   slug: string;
   grade: number;

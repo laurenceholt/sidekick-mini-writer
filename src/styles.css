@@ -83,6 +83,32 @@ button:disabled {
   min-width: 0;
 }
 
+.writer-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.writer-switcher select {
+  min-width: 150px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffefa;
+  color: var(--minis-ink);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  outline: none;
+  padding: 6px 9px;
+  text-transform: none;
+}
+
 .brand-icon {
   position: relative;
   width: 32px;
@@ -523,6 +549,13 @@ h2 {
 .empty-panel p,
 .muted {
   color: var(--muted);
+}
+
+.empty-copy {
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .toolbar-actions {
@@ -968,6 +1001,9 @@ h2 {
   }
 
   .brand-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
     padding: 8px 10px;
   }
 
@@ -1001,6 +1037,16 @@ h2 {
 
   .brand-divider {
     height: 22px;
+  }
+
+  .writer-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .writer-switcher select {
+    min-width: 0;
+    width: min(220px, 62vw);
   }
 
   .main-toolbar,

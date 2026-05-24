@@ -3,7 +3,7 @@ import type { KnowledgeComponent } from "../lib/types";
 
 interface KcPanelProps {
   kcs: KnowledgeComponent[];
-  selectedKc: KnowledgeComponent;
+  selectedKc: KnowledgeComponent | null;
   dirty: boolean;
   collapsed: boolean;
   onSelect: (id: string) => void;
@@ -36,7 +36,7 @@ export function KcPanel({
         </button>
         <div className="collapsed-kc">
           <span className="collapsed-label">KC</span>
-          <span className="collapsed-id">{kcCode(selectedKc)}</span>
+          <span className="collapsed-id">{selectedKc ? kcCode(selectedKc) : "None"}</span>
         </div>
       </aside>
     );
@@ -58,7 +58,8 @@ export function KcPanel({
       </div>
 
       <label className="field-label" htmlFor="kc-select">Previous KCs</label>
-      <select id="kc-select" className="select" value={selectedKc.id} onChange={(event) => onSelect(event.target.value)}>
+      <select id="kc-select" className="select" value={selectedKc?.id ?? ""} onChange={(event) => onSelect(event.target.value)} disabled={!kcs.length}>
+        {!kcs.length && <option value="">No KCs yet</option>}
         {kcs.map((kc) => (
           <option key={kc.id} value={kc.id}>{kcCode(kc)} · {kc.title}</option>
         ))}
@@ -82,6 +83,10 @@ export function KcPanel({
         </button>
       </form>
 
+      {!selectedKc && <p className="empty-copy">This writer has no KCs yet. Create one above to start a blank workspace.</p>}
+
+      {selectedKc && (
+        <>
       <div className="kc-title-row">
         <input
           className="title-input"
@@ -146,6 +151,8 @@ export function KcPanel({
         <Sparkles size={18} />
         Generate Mini
       </button>
+        </>
+      )}
     </aside>
   );
 }

@@ -12,6 +12,32 @@ const TABLES = {
 } as const;
 
 const MANUAL_VERSION_WINDOW_MS = 60_000;
+export const DEFAULT_WRITER = "Laurence";
+const WRITER_MARKER = /^<!--\s*mini-writer-writer:([^>]+?)\s*-->\s*/;
+
+function cleanWriterName(value?: string | null) {
+  const name = value?.trim();
+  return name || DEFAULT_WRITER;
+}
+
+function splitWriterNotes(notes?: string | null) {
+  const raw = notes ?? "";
+  const match = raw.match(WRITER_MARKER);
+  if (!match) return { writerName: DEFAULT_WRITER, notesMd: raw };
+  try {
+    return { writerName: cleanWriterName(decodeURIComponent(match[1].trim())), notesMd: raw.replace(WRITER_MARKER, "") };
+  } catch {
+    return { writerName: DEFAULT_WRITER, notesMd: raw.replace(WRITER_MARKER, "") };
+  }
+}
+
+function notesWithWriter(notes: string | undefined, writerName: string | undefined) {
+  return `<!-- mini-writer-writer:${encodeURIComponent(cleanWriterName(writerName))} -->\n${notes ?? ""}`;
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "kc";
+}
 
 function client() {
   const url = getEnv("SUPABASE_URL");
@@ -21,8 +47,10 @@ function client() {
 }
 
 export function toKc(row: Record<string, any>): KnowledgeComponent {
+  const { writerName, notesMd } = splitWriterNotes(row.notes_md);
   return {
     id: row.id,
+    writerName,
     title: row.title,
     slug: row.slug,
     grade: row.grade,
@@ -32,7 +60,7 @@ export function toKc(row: Record<string, any>): KnowledgeComponent {
     response: row.response,
     workedExampleMd: row.worked_example_md,
     standards: row.standards ?? [],
-    notesMd: row.notes_md ?? "",
+    notesMd,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -49,17 +77,30 @@ function kcRow(kc: Partial<KnowledgeComponent>) {
     response: kc.response,
     worked_example_md: kc.workedExampleMd,
     standards: kc.standards,
-    notes_md: kc.notesMd,
+    notes_md: notesWithWriter(kc.notesMd, kc.writerName),
   };
 }
 
-export async function listKcs() {
+export async function listKcs(writerName = DEFAULT_WRITER) {
   const db = client();
-  if (!db) return [seedKc];
+  const writer = cleanWriterName(writerName);
+  if (!db) return writer === DEFAULT_WRITER ? [seedKc] : [];
   const { data, error } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
   if (error) throw error;
-  if (data.length) return data.map(toKc);
-  return [await ensureSeedData(db)];
+  if (!data.length && writer === DEFAULT_WRITER) return [await ensureSeedData(db)];
+  const kcs = data.map(toKc).filter((kc) => kc.writerName === writer);
+  if (!kcs.length && writer === DEFAULT_WRITER && !data.some((row) => row.id === seedKc.id)) return [await ensureSeedData(db)];
+  return kcs;
+}
+
+export async function listWriters() {
+  const db = client();
+  if (!db) return [DEFAULT_WRITER];
+  const { data, error } = await db.from(TABLES.kcs).select("notes_md");
+  if (error) throw error;
+  const writers = new Set((data ?? []).map((row) => splitWriterNotes(row.notes_md).writerName));
+  writers.add(DEFAULT_WRITER);
+  return [...writers].sort((a, b) => a.localeCompare(b));
 }
 
 export async function getKc(id: string) {
@@ -72,16 +113,24 @@ export async function getKc(id: string) {
   return toKc(data);
 }
 
-export async function insertKc(data: Record<string, any>) {
+export async function insertKc(data: Record<string, any>, writerName = DEFAULT_WRITER) {
   const db = client();
-  if (!db) return { ...seedKc, ...toKcLike(data), id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  const { data: inserted, error } = await db.from(TABLES.kcs).insert(data).select("*").single();
+  const writer = cleanWriterName(writerName);
+  const row: Record<string, any> = { ...data, notes_md: notesWithWriter(data.notes_md, writer) };
+  if (!db) return { ...seedKc, ...toKcLike(row), writerName: writer, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const baseSlug = slugify(row.slug ?? row.title ?? "kc");
+  const { data: existingSlug, error: slugError } = await db.from(TABLES.kcs).select("id").eq("slug", baseSlug).maybeSingle();
+  if (slugError) throw slugError;
+  const insertRow = { ...row, slug: existingSlug ? `${baseSlug}_${crypto.randomUUID().slice(0, 8)}` : baseSlug };
+  const { data: inserted, error } = await db.from(TABLES.kcs).insert(insertRow).select("*").single();
   if (error) throw error;
   return toKc(inserted);
 }
 
 function toKcLike(row: Record<string, any>) {
+  const { writerName, notesMd } = splitWriterNotes(row.notes_md);
   return {
+    writerName,
     title: row.title,
     slug: row.slug,
     grade: row.grade,
@@ -91,7 +140,7 @@ function toKcLike(row: Record<string, any>) {
     response: row.response,
     workedExampleMd: row.worked_example_md,
     standards: row.standards ?? [],
-    notesMd: row.notes_md ?? "",
+    notesMd,
   };
 }
 
@@ -139,6 +188,7 @@ export async function listMinis(kcId: string) {
     await ensureSeedData(db);
     return [seedMini];
   }
+  if (!minis.length) return [];
   const miniIds = minis.map((mini) => mini.id);
   const { data: versions, error: versionError } = await db.from(TABLES.versions).select("*").in("mini_id", miniIds).order("version_number");
   if (versionError) throw versionError;
@@ -290,7 +340,7 @@ async function ensureSeedData(db: SupabaseClient<any>) {
     response: seedKc.response,
     worked_example_md: seedKc.workedExampleMd,
     standards: seedKc.standards,
-    notes_md: seedKc.notesMd,
+    notes_md: notesWithWriter(seedKc.notesMd, seedKc.writerName),
   };
   const { data: inserted, error: insertError } = await db.from(TABLES.kcs).insert(seedRow).select("*").single();
   if (insertError) throw insertError;

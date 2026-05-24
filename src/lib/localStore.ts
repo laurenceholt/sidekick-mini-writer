@@ -3,16 +3,20 @@ import type { WorkspaceData } from "./types";
 
 const KEY = "mini-writer-workspace-v1";
 
-export function loadLocalWorkspace(): WorkspaceData {
-  const stored = window.localStorage.getItem(KEY);
-  if (!stored) return seedWorkspace;
+function keyForWriter(writerName: string) {
+  return `${KEY}:${writerName}`;
+}
+
+export function loadLocalWorkspace(writerName = "Laurence"): WorkspaceData {
+  const stored = window.localStorage.getItem(keyForWriter(writerName)) ?? (writerName === "Laurence" ? window.localStorage.getItem(KEY) : null);
+  if (!stored) return writerName === "Laurence" ? seedWorkspace : { kcs: [], minis: [] };
   try {
     return JSON.parse(stored) as WorkspaceData;
   } catch {
-    return seedWorkspace;
+    return writerName === "Laurence" ? seedWorkspace : { kcs: [], minis: [] };
   }
 }
 
-export function saveLocalWorkspace(data: WorkspaceData) {
-  window.localStorage.setItem(KEY, JSON.stringify(data));
+export function saveLocalWorkspace(data: WorkspaceData, writerName = "Laurence") {
+  window.localStorage.setItem(keyForWriter(writerName), JSON.stringify(data));
 }

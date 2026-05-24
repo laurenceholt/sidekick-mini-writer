@@ -28,10 +28,20 @@ export async function askAnthropicForJson<T>(system: string, prompt: string, opt
       messages: [{ role: "user", content: prompt }],
       ...(tools ? { tools } : {}),
     } as any);
+  const streamMessage = (tools: typeof webSearchTools) =>
+    client.messages
+      .stream({
+        model: getEnv("ANTHROPIC_MODEL") ?? "claude-opus-4-7",
+        max_tokens: 4000,
+        system,
+        messages: [{ role: "user", content: prompt }],
+        ...(tools ? { tools } : {}),
+      } as any)
+      .finalMessage();
 
   let response: Awaited<ReturnType<typeof createMessage>>;
   try {
-    response = await createMessage(webSearchTools);
+    response = webSearchTools ? await streamMessage(webSearchTools) : await createMessage();
   } catch (error) {
     if (!webSearchTools) throw error;
     response = await createMessage();

@@ -5,6 +5,7 @@ const now = "2026-05-23T00:00:00.000Z";
 
 export const seedKc: KnowledgeComponent = {
   id: "11111111-1111-4111-8111-111111111111",
+  writerName: "Laurence",
   title: "Interpret Truth of Equation",
   slug: "interpret_true_false_equation",
   grade: 6,
