@@ -94,6 +94,9 @@ export async function listKcs(writerName = DEFAULT_WRITER) {
       } else if (legacy.length) {
         return legacy.map((row) => toKc(row, DEFAULT_WRITER));
       }
+      const { data: allDefault, error: allDefaultError } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
+      if (allDefaultError) throw allDefaultError;
+      if (allDefault.length) return allDefault.map((row) => toKc(row, DEFAULT_WRITER));
       return [await ensureSeedData(db)];
     }
   } else if (hasWriterSchema) {
