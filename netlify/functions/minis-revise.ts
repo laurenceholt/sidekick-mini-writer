@@ -1,7 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { askAnthropicForJson } from "./_shared/ai";
 import { getMini, logFeedback, replaceMiniSteps } from "./_shared/db";
-import { fallbackRevision } from "./_shared/localAi";
 import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { MiniStep } from "./_shared/types";
@@ -13,7 +12,6 @@ export default async (req: Request, context: Context) => {
     if (!mini) return error("Mini not found", 404);
     const { prompt } = (await req.json()) as { prompt?: string };
     if (!prompt) return error("Prompt is required", 400);
-    const fallback = fallbackRevision(mini.steps, prompt);
     const result = await askAnthropicForJson<{ steps: MiniStep[]; response: string; summary: string }>(
       `You revise Sidekick mini lesson steps. Return only valid JSON.
 
@@ -34,7 +32,6 @@ Return JSON:
 }
 
 Preserve step ids and math targets unless the request explicitly changes them.`,
-      fallback,
     );
     const beforeVersionId = mini.currentVersionId;
     const updated = await replaceMiniSteps(mini, result.steps, "agent", result.summary);

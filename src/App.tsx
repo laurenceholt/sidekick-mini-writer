@@ -6,7 +6,7 @@ import { MiniEditor } from "./components/MiniEditor";
 import { MinisWordmark } from "./components/MinisWordmark";
 import { api, fetchWorkspace } from "./lib/api";
 import { createId } from "./lib/ids";
-import { applyAgentNotes, generateKcDraft, generateMiniForKc, reviseStepsFromPrompt } from "./lib/localAgent";
+import { generateMiniForKc } from "./lib/localAgent";
 import { loadLocalWorkspace, saveLocalWorkspace } from "./lib/localStore";
 import { seedWorkspace } from "./lib/seed";
 import { addVersion, revertMini } from "./lib/versions";
@@ -19,6 +19,10 @@ function addMessage(role: AgentMessage["role"], content: string): AgentMessage {
     content,
     createdAt: new Date().toISOString(),
   };
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : "Unexpected error";
 }
 
 const KC_PANEL_COLLAPSED_KEY = "mini-writer:kc-panel-collapsed";
@@ -92,29 +96,26 @@ export default function App() {
   };
 
   const handleCreateKc = async (title: string) => {
-    let kc = generateKcDraft(title);
     try {
-      kc = await api.createKc(title);
-    } catch {
-      // Local draft already provides a usable offline path.
+      const kc = await api.createKc(title);
+      updateWorkspace((data) => ({ ...data, kcs: [...data.kcs, kc] }));
+      setSelectedKcId(kc.id);
+      setSelectedMiniId(null);
+    } catch (err) {
+      setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to create that KC: ${errorMessage(err)}`)]);
     }
-    updateWorkspace((data) => ({ ...data, kcs: [...data.kcs, kc] }));
-    setSelectedKcId(kc.id);
-    setSelectedMiniId(null);
   };
 
   const handleGenerateMini = async () => {
     if (!selectedKc) return;
-    const nextIndex = Math.min(minisForKc.length + 1, 4);
-    let mini = generateMiniForKc(selectedKc, nextIndex);
     try {
-      mini = await api.generateMini(selectedKc.id);
-    } catch {
-      // Keep generated local mini.
+      const mini = await api.generateMini(selectedKc.id);
+      updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
+      setSelectedMiniId(mini.id);
+      setMessages((current) => [...current, addMessage("agent", "Done. Claude generated a mini for this KC.")]);
+    } catch (err) {
+      setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`)]);
     }
-    updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
-    setSelectedMiniId(mini.id);
-    setMessages((current) => [...current, addMessage("agent", "Done. I generated a mini for this KC.")]);
   };
 
   const handleMiniChange = (mini: Mini, snapshot = false) => {
@@ -163,11 +164,8 @@ export default function App() {
       const result = await api.reviseMini(selectedMini.id, prompt);
       replaceMini(result.mini);
       setMessages((current) => [...current, addMessage("agent", result.response)]);
-    } catch {
-      const result = reviseStepsFromPrompt(selectedMini.steps, prompt);
-      const mini = addVersion(selectedMini, result.steps, "agent", result.summary);
-      replaceMini(mini);
-      setMessages((current) => [...current, addMessage("agent", result.response)]);
+    } catch (err) {
+      setMessages((current) => [...current, addMessage("agent", `I couldn't send that to Claude: ${errorMessage(err)}`)]);
     }
   };
 
@@ -177,11 +175,8 @@ export default function App() {
       const result = await api.processNotes(selectedMini.id);
       replaceMini(result.mini);
       setMessages((current) => [...current, addMessage("agent", result.response)]);
-    } catch {
-      const result = applyAgentNotes(selectedMini.steps);
-      const mini = addVersion(selectedMini, result.steps, "notes", "Processed agent notes.");
-      replaceMini(mini);
-      setMessages((current) => [...current, addMessage("agent", result.response)]);
+    } catch (err) {
+      setMessages((current) => [...current, addMessage("agent", `I couldn't send the notes to Claude: ${errorMessage(err)}`)]);
     }
   };
 

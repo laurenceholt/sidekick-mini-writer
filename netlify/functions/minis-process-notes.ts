@@ -5,21 +5,6 @@ import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { MiniStep } from "./_shared/types";
 
-function localProcess(steps: MiniStep[]) {
-  const responses: string[] = [];
-  const next = steps.map((step) => {
-    if (!step.agentNotes.trim()) return step;
-    responses.push(`${step.id}: Done`);
-    return {
-      ...step,
-      hint: step.agentNotes.toLowerCase().includes("hint") ? `${step.hint} Compare both sides before answering.` : step.hint,
-      instruction: step.agentNotes.toLowerCase().includes("short") ? step.instruction.replace("Look at ", "") : step.instruction,
-      agentNotes: "",
-    };
-  });
-  return { steps: next, response: responses.length ? responses.join("\n") : "No agent notes to process.", summary: "Processed agent notes." };
-}
-
 export default async (req: Request, context: Context) => {
   try {
     if (req.method !== "POST") return error("Method not allowed", 405);
@@ -42,7 +27,6 @@ Return JSON:
   "response": "brief per-step response for the writer",
   "summary": "version history summary"
 }`,
-      localProcess(mini.steps),
     );
     const beforeVersionId = mini.currentVersionId;
     const updated = await replaceMiniSteps(mini, result.steps, "notes", result.summary);

@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getEnv } from "./env";
 
-export async function askAnthropicForJson<T>(system: string, prompt: string, fallback: T): Promise<T> {
+export async function askAnthropicForJson<T>(system: string, prompt: string): Promise<T> {
   const apiKey = getEnv("ANTHROPIC_API_KEY");
-  if (!apiKey) return fallback;
+  if (!apiKey) throw new Error("Claude is not configured. Add ANTHROPIC_API_KEY in Netlify.");
 
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({

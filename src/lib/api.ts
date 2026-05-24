@@ -1,6 +1,16 @@
 import { seedWorkspace } from "./seed";
 import type { KnowledgeComponent, Mini, WorkspaceData } from "./types";
 
+function formatApiError(path: string, body: string) {
+  try {
+    const parsed = JSON.parse(body) as { error?: string };
+    if (parsed.error) return parsed.error;
+  } catch {
+    // Fall through to the raw body.
+  }
+  return body || `Request failed: ${path}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -9,7 +19,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(formatApiError(path, await res.text()));
   return res.json() as Promise<T>;
 }
 
