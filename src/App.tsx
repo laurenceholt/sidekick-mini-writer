@@ -33,6 +33,7 @@ export default function App() {
   const [selectedMiniId, setSelectedMiniId] = useState<string | null>(seedWorkspace.minis[0].id);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [agentBusyLabel, setAgentBusyLabel] = useState<string | null>(null);
   const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
@@ -96,6 +97,7 @@ export default function App() {
   };
 
   const handleCreateKc = async (title: string) => {
+    setAgentBusyLabel("Asking Claude to draft the KC...");
     try {
       const kc = await api.createKc(title);
       updateWorkspace((data) => ({ ...data, kcs: [...data.kcs, kc] }));
@@ -103,11 +105,14 @@ export default function App() {
       setSelectedMiniId(null);
     } catch (err) {
       setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to create that KC: ${errorMessage(err)}`)]);
+    } finally {
+      setAgentBusyLabel(null);
     }
   };
 
   const handleGenerateMini = async () => {
     if (!selectedKc) return;
+    setAgentBusyLabel("Asking Claude to generate a mini...");
     try {
       const mini = await api.generateMini(selectedKc.id);
       updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
@@ -115,6 +120,8 @@ export default function App() {
       setMessages((current) => [...current, addMessage("agent", "Done. Claude generated a mini for this KC.")]);
     } catch (err) {
       setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`)]);
+    } finally {
+      setAgentBusyLabel(null);
     }
   };
 
@@ -131,7 +138,7 @@ export default function App() {
         () => {
           api.updateMini(updated).catch(() => undefined);
         },
-        snapshot ? 0 : 1200,
+        snapshot ? 0 : 250,
       ),
     );
   };
@@ -159,6 +166,7 @@ export default function App() {
 
   const handleAgentSend = async (prompt: string) => {
     if (!selectedMini) return;
+    setAgentBusyLabel("Sending request to Claude...");
     setMessages((current) => [...current, addMessage("writer", prompt)]);
     try {
       const result = await api.reviseMini(selectedMini.id, prompt);
@@ -166,17 +174,22 @@ export default function App() {
       setMessages((current) => [...current, addMessage("agent", result.response)]);
     } catch (err) {
       setMessages((current) => [...current, addMessage("agent", `I couldn't send that to Claude: ${errorMessage(err)}`)]);
+    } finally {
+      setAgentBusyLabel(null);
     }
   };
 
   const handleProcessNotes = async () => {
     if (!selectedMini) return;
+    setAgentBusyLabel("Sending step notes to Claude...");
     try {
       const result = await api.processNotes(selectedMini.id);
       replaceMini(result.mini);
       setMessages((current) => [...current, addMessage("agent", result.response)]);
     } catch (err) {
       setMessages((current) => [...current, addMessage("agent", `I couldn't send the notes to Claude: ${errorMessage(err)}`)]);
+    } finally {
+      setAgentBusyLabel(null);
     }
   };
 
@@ -234,6 +247,7 @@ export default function App() {
         <AgentPanel
           mini={selectedMini}
           messages={messages}
+          busyLabel={agentBusyLabel}
           onSend={handleAgentSend}
           onProcessNotes={handleProcessNotes}
           onRevert={handleRevert}

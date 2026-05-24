@@ -11,6 +11,8 @@ const TABLES = {
   feedback: "mini_writer_feedback_log",
 } as const;
 
+const MANUAL_VERSION_WINDOW_MS = 60_000;
+
 function client() {
   const url = getEnv("SUPABASE_URL");
   const key = getEnv("SUPABASE_SECRET_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -193,9 +195,10 @@ export async function updateMini(mini: Mini) {
   if (!db) return mini;
   const { data, error } = await db.from(TABLES.minis).update({ title: mini.title }).eq("id", mini.id).select("*").single();
   if (error) throw error;
-  const version = await createVersion(mini.id, mini.steps, "manual", "Manual edit autosave.");
+  const version = await saveManualVersion(mini.id, mini.steps);
   await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id);
-  return toMini({ ...data, current_version_id: version.id }, [...mini.versions, version]);
+  const versions = await listVersionsForMini(mini.id);
+  return toMini({ ...data, current_version_id: version.id }, versions);
 }
 
 export async function createVersion(miniId: string, steps: MiniStep[], source: string, summary: string) {
@@ -219,6 +222,38 @@ export async function createVersion(miniId: string, steps: MiniStep[], source: s
     .single();
   if (error) throw error;
   return toVersion(data);
+}
+
+async function listVersionsForMini(miniId: string) {
+  const db = client();
+  if (!db) return [];
+  const { data, error } = await db.from(TABLES.versions).select("*").eq("mini_id", miniId).order("version_number");
+  if (error) throw error;
+  return (data ?? []).map(toVersion);
+}
+
+async function saveManualVersion(miniId: string, steps: MiniStep[]) {
+  const db = client();
+  if (!db) return createVersion(miniId, steps, "manual", "Manual edit autosave.");
+  const { data: latest, error: latestError } = await db
+    .from(TABLES.versions)
+    .select("*")
+    .eq("mini_id", miniId)
+    .order("version_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestError) throw latestError;
+  if (latest?.source === "manual" && Date.now() - new Date(latest.created_at).getTime() < MANUAL_VERSION_WINDOW_MS) {
+    const { data, error } = await db
+      .from(TABLES.versions)
+      .update({ steps, summary: "Manual edit autosave." })
+      .eq("id", latest.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return toVersion(data);
+  }
+  return createVersion(miniId, steps, "manual", "Manual edit autosave.");
 }
 
 export async function replaceMiniSteps(mini: Mini, steps: MiniStep[], source: string, summary: string) {

@@ -4,12 +4,15 @@ import type { AgentMessage, Mini } from "../lib/types";
 interface AgentPanelProps {
   mini: Mini | null;
   messages: AgentMessage[];
+  busyLabel: string | null;
   onSend: (prompt: string) => void;
   onProcessNotes: () => void;
   onRevert: (versionId: string) => void;
 }
 
-export function AgentPanel({ mini, messages, onSend, onProcessNotes, onRevert }: AgentPanelProps) {
+export function AgentPanel({ mini, messages, busyLabel, onSend, onProcessNotes, onRevert }: AgentPanelProps) {
+  const isBusy = Boolean(busyLabel);
+
   return (
     <aside className="panel agent-panel">
       <div className="panel-header">
@@ -27,6 +30,12 @@ export function AgentPanel({ mini, messages, onSend, onProcessNotes, onRevert }:
             {message.content}
           </div>
         ))}
+        {busyLabel && (
+          <div className="agent-working" aria-live="polite">
+            <span className="working-dot" />
+            {busyLabel}
+          </div>
+        )}
       </div>
 
       <form
@@ -35,20 +44,20 @@ export function AgentPanel({ mini, messages, onSend, onProcessNotes, onRevert }:
           event.preventDefault();
           const form = event.currentTarget;
           const input = form.elements.namedItem("prompt") as HTMLTextAreaElement;
-          if (input.value.trim()) {
+          if (input.value.trim() && !isBusy) {
             onSend(input.value.trim());
             form.reset();
           }
         }}
       >
-        <textarea name="prompt" placeholder="Ask the agent to revise this mini" />
-        <button className="primary-button" type="submit">
+        <textarea name="prompt" placeholder="Ask the agent to revise this mini" disabled={isBusy || !mini} />
+        <button className="primary-button" type="submit" disabled={isBusy || !mini}>
           <Wand2 size={17} />
-          Send to agent
+          {isBusy ? "Working" : "Send to agent"}
         </button>
       </form>
 
-      <button className="secondary-button full" onClick={onProcessNotes} disabled={!mini}>
+      <button className="secondary-button full" onClick={onProcessNotes} disabled={!mini || isBusy}>
         <Wand2 size={17} />
         Process agent notes
       </button>
