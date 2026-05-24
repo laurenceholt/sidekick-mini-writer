@@ -169,7 +169,7 @@ export default function App() {
     setAgentBusyLabel("Sending request to Claude...");
     setMessages((current) => [...current, addMessage("writer", prompt)]);
     try {
-      const result = await api.reviseMini(selectedMini.id, prompt);
+      const result = await api.reviseMini(selectedMini.id, prompt, messages);
       replaceMini(result.mini);
       setMessages((current) => [...current, addMessage("agent", result.response)]);
     } catch (err) {

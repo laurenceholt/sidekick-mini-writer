@@ -5,18 +5,55 @@ import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { MiniStep } from "./_shared/types";
 
+function isDoneNote(note: string) {
+  return /\*\*Done\*\*/i.test(note) || /(^|\s)-\s*Done\s*$/i.test(note);
+}
+
+function markProcessedNotes(steps: MiniStep[], originalNotes: MiniStep[]) {
+  const processedIds = new Set(originalNotes.map((step) => step.id));
+  const originalById = new Map(originalNotes.map((step) => [step.id, step.agentNotes.trim()]));
+  return steps.map((step) => {
+    if (!processedIds.has(step.id) || isDoneNote(step.agentNotes)) return step;
+    const originalNote = originalById.get(step.id) ?? step.agentNotes.trim();
+    return { ...step, agentNotes: `${originalNote} - **Done**` };
+  });
+}
+
 export default async (req: Request, context: Context) => {
   try {
     if (req.method !== "POST") return error("Method not allowed", 405);
     const mini = await getMini(context.params.id);
     if (!mini) return error("Mini not found", 404);
-    const notes = mini.steps.filter((step) => step.agentNotes.trim());
+    const notes = mini.steps.filter((step) => step.agentNotes.trim() && !isDoneNote(step.agentNotes));
+    if (!notes.length) {
+      await logFeedback({
+        kc_id: mini.kcId,
+        mini_id: mini.id,
+        before_version_id: mini.currentVersionId,
+        after_version_id: null,
+        event_type: "process_agent_notes",
+        writer_input: "[]",
+        agent_response: "No unprocessed agent notes.",
+        payload: { skipped: true },
+      });
+      return json({ mini, response: "No unprocessed agent notes." });
+    }
     const result = await askAnthropicForJson<{ steps: MiniStep[]; response: string; summary: string }>(
       `You process per-step writer notes for a math mini lesson. Return only valid JSON.
 
 Apply writer notes using this lesson-writing skill:
 ${MINI_LESSON_SKILL}`,
-      `Apply each agentNotes field to its own step. Clear agentNotes after applying.
+      `Apply each unprocessed agentNotes field to its own step.
+
+Rules:
+- Process only agent notes that do not already contain **Done**.
+- Do not reprocess notes that already contain **Done**.
+- After applying a note, keep the note text in agentNotes and append " - **Done**".
+- Do not clear agentNotes.
+- If a note is already marked done, leave that step unchanged.
+
+Unprocessed agent notes:
+${JSON.stringify(notes.map((step) => ({ id: step.id, agentNotes: step.agentNotes })), null, 2)}
 
 Steps:
 ${JSON.stringify(mini.steps, null, 2)}
@@ -29,7 +66,8 @@ Return JSON:
 }`,
     );
     const beforeVersionId = mini.currentVersionId;
-    const updated = await replaceMiniSteps(mini, result.steps, "notes", result.summary);
+    const steps = markProcessedNotes(result.steps, notes);
+    const updated = await replaceMiniSteps(mini, steps, "notes", result.summary);
     await logFeedback({
       kc_id: mini.kcId,
       mini_id: mini.id,

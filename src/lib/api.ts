@@ -1,5 +1,5 @@
 import { seedWorkspace } from "./seed";
-import type { KnowledgeComponent, Mini, WorkspaceData } from "./types";
+import type { AgentMessage, KnowledgeComponent, Mini, WorkspaceData } from "./types";
 
 function formatApiError(path: string, body: string) {
   try {
@@ -40,7 +40,14 @@ export const api = {
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
   generateMini: (kcId: string) => request<Mini>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),
-  reviseMini: (miniId: string, prompt: string) => request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/revise`, { method: "POST", body: JSON.stringify({ prompt }) }),
+  reviseMini: (miniId: string, prompt: string, history: AgentMessage[]) =>
+    request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/revise`, {
+      method: "POST",
+      body: JSON.stringify({
+        prompt,
+        history: history.slice(-10).map(({ role, content }) => ({ role, content })),
+      }),
+    }),
   processNotes: (miniId: string) => request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/process-notes`, { method: "POST" }),
   revertMini: (miniId: string, versionId: string) => request<Mini>(`/api/minis/${miniId}/revert`, { method: "POST", body: JSON.stringify({ versionId }) }),
 };
