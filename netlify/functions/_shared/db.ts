@@ -79,6 +79,12 @@ export async function listKcs(writerName = DEFAULT_WRITER) {
   const db = client();
   const writer = cleanWriterName(writerName);
   if (!db) return writer === DEFAULT_WRITER ? [seedKc] : [];
+  if (writer === DEFAULT_WRITER) {
+    const { data, error } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
+    if (error) throw error;
+    if (data.length) return data.map((row) => toKc(row, DEFAULT_WRITER));
+    return [await ensureSeedData(db)];
+  }
   const hasWriterSchema = await writerSchemaExists();
   const writerRow = hasWriterSchema ? await ensureWriter(writer) : null;
   if (hasWriterSchema && writerRow) {
