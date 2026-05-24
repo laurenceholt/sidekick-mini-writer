@@ -1,5 +1,5 @@
 import type { Config, Context } from "@netlify/functions";
-import { askAnthropicForJson } from "./_shared/ai";
+import { askAnthropicForText } from "./_shared/ai";
 import { getMini, logFeedback, replaceMiniSteps } from "./_shared/db";
 import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error } from "./_shared/response";
@@ -11,6 +11,29 @@ type RevisionResult = {
   response: string;
   summary: string;
 };
+
+function parseRevisionResponse(text: string, originalSteps: MiniStep[]): RevisionResult {
+  const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+  try {
+    const parsed = JSON.parse(cleaned) as RevisionResult;
+    if (typeof parsed.updateMini !== "boolean" || !Array.isArray(parsed.steps) || typeof parsed.response !== "string") {
+      throw new Error("Invalid revision response shape");
+    }
+    return {
+      updateMini: parsed.updateMini,
+      steps: parsed.updateMini ? parsed.steps : originalSteps,
+      response: parsed.response,
+      summary: parsed.summary || (parsed.updateMini ? "Agent revision." : "No mini changes."),
+    };
+  } catch {
+    return {
+      updateMini: false,
+      steps: originalSteps,
+      response: cleaned || "I could not format a response, but I did not change the mini.",
+      summary: "No mini changes.",
+    };
+  }
+}
 
 function streamJson<T>(work: Promise<T>) {
   const encoder = new TextEncoder();
@@ -43,7 +66,7 @@ function streamJson<T>(work: Promise<T>) {
 }
 
 async function reviseMini(mini: NonNullable<Awaited<ReturnType<typeof getMini>>>, prompt: string, history: { role: string; content: string }[]) {
-  const result = await askAnthropicForJson<RevisionResult>(
+  const responseText = await askAnthropicForText(
     `You are the revision agent for Sidekick mini lessons. Return only valid JSON.
 
 Preserve the writer's intent while applying this skill:
@@ -76,6 +99,7 @@ If updateMini is false, steps must be exactly the original steps and summary sho
 Preserve step ids and math targets unless the request explicitly changes them.`,
     { enableWebSearch: true },
   );
+  const result = parseRevisionResponse(responseText, mini.steps);
   const beforeVersionId = mini.currentVersionId;
   const updated = result.updateMini ? await replaceMiniSteps(mini, result.steps, "agent", result.summary) : mini;
   await logFeedback({

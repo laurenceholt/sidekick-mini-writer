@@ -6,6 +6,12 @@ type AskOptions = {
 };
 
 export async function askAnthropicForJson<T>(system: string, prompt: string, options: AskOptions = {}): Promise<T> {
+  const text = await askAnthropicForText(system, prompt, options);
+  const jsonText = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+  return JSON.parse(jsonText) as T;
+}
+
+export async function askAnthropicForText(system: string, prompt: string, options: AskOptions = {}): Promise<string> {
   const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("Claude is not configured. Add ANTHROPIC_API_KEY in Netlify.");
 
@@ -47,11 +53,9 @@ export async function askAnthropicForJson<T>(system: string, prompt: string, opt
     response = await createMessage();
   }
 
-  const text = response.content
+  return response.content
     .filter((block) => block.type === "text")
     .map((block) => block.text)
     .join("\n")
     .trim();
-  const jsonText = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-  return JSON.parse(jsonText) as T;
 }
