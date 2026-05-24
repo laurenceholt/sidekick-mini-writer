@@ -30,6 +30,7 @@ Important decision rule:
 - If the writer is asking for ideas, critique, explanation, options, clarification, or a planning response, do not update the mini. Set updateMini to false, return the original steps unchanged, and offer to make a change if the writer chooses an option.
 - If the writer clearly asks you to revise, use, apply, change, shorten, rewrite, add, remove, or otherwise alter the mini, set updateMini to true and return updated steps.
 - Use recent chat history to resolve follow-ups like "use idea #4".
+- If web search is available and useful, you may use it. If you use web search, include source URLs or short source labels in response.
 
 Writer request: ${prompt}
 
@@ -49,6 +50,7 @@ Return JSON:
 
 If updateMini is false, steps must be exactly the original steps and summary should be "No mini changes.".
 Preserve step ids and math targets unless the request explicitly changes them.`,
+      { enableWebSearch: true },
     );
     const beforeVersionId = mini.currentVersionId;
     const updated = result.updateMini ? await replaceMiniSteps(mini, result.steps, "agent", result.summary) : mini;

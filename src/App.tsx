@@ -166,7 +166,12 @@ export default function App() {
 
   const handleAgentSend = async (prompt: string) => {
     if (!selectedMini) return;
-    setAgentBusyLabel("Sending request to Claude...");
+    if (/^\s*process(?:\s+agent)?\s+notes?\s*\.?\s*$/i.test(prompt)) {
+      setMessages((current) => [...current, addMessage("writer", prompt)]);
+      await handleProcessNotes();
+      return;
+    }
+    setAgentBusyLabel("Thinking...");
     setMessages((current) => [...current, addMessage("writer", prompt)]);
     try {
       const result = await api.reviseMini(selectedMini.id, prompt, messages);
@@ -181,7 +186,7 @@ export default function App() {
 
   const handleProcessNotes = async () => {
     if (!selectedMini) return;
-    setAgentBusyLabel("Sending step notes to Claude...");
+    setAgentBusyLabel("Thinking...");
     try {
       const result = await api.processNotes(selectedMini.id);
       replaceMini(result.mini);
@@ -243,14 +248,13 @@ export default function App() {
           onChangeMini={handleMiniChange}
           onAddMini={handleAddMini}
           onDeleteMini={handleDeleteMini}
+          onRevert={handleRevert}
         />
         <AgentPanel
           mini={selectedMini}
           messages={messages}
           busyLabel={agentBusyLabel}
           onSend={handleAgentSend}
-          onProcessNotes={handleProcessNotes}
-          onRevert={handleRevert}
         />
       </main>
       <DeployMarker />

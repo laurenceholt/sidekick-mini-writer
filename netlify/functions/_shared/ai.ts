@@ -1,17 +1,41 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getEnv } from "./env";
 
-export async function askAnthropicForJson<T>(system: string, prompt: string): Promise<T> {
+type AskOptions = {
+  enableWebSearch?: boolean;
+};
+
+export async function askAnthropicForJson<T>(system: string, prompt: string, options: AskOptions = {}): Promise<T> {
   const apiKey = getEnv("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("Claude is not configured. Add ANTHROPIC_API_KEY in Netlify.");
 
   const client = new Anthropic({ apiKey });
-  const response = await client.messages.create({
-    model: getEnv("ANTHROPIC_MODEL") ?? "claude-opus-4-7",
-    max_tokens: 4000,
-    system,
-    messages: [{ role: "user", content: prompt }],
-  });
+  const webSearchTools =
+    options.enableWebSearch && getEnv("ANTHROPIC_ENABLE_WEB_SEARCH") === "true"
+      ? [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 3,
+          },
+        ]
+      : undefined;
+  const createMessage = (tools?: typeof webSearchTools) =>
+    client.messages.create({
+      model: getEnv("ANTHROPIC_MODEL") ?? "claude-opus-4-7",
+      max_tokens: 4000,
+      system,
+      messages: [{ role: "user", content: prompt }],
+      ...(tools ? { tools } : {}),
+    } as any);
+
+  let response: Awaited<ReturnType<typeof createMessage>>;
+  try {
+    response = await createMessage(webSearchTools);
+  } catch (error) {
+    if (!webSearchTools) throw error;
+    response = await createMessage();
+  }
 
   const text = response.content
     .filter((block) => block.type === "text")

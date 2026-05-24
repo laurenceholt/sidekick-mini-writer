@@ -12,6 +12,7 @@ interface MiniEditorProps {
   onChangeMini: (mini: Mini, snapshot?: boolean) => void;
   onAddMini: () => void;
   onDeleteMini: (id: string) => void;
+  onRevert: (versionId: string) => void;
 }
 
 type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "notes" | "actions";
@@ -20,7 +21,7 @@ function kcCode(kc: KnowledgeComponent) {
   return `${kc.grade}-${kc.unit}-${kc.lesson}`;
 }
 
-export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini }: MiniEditorProps) {
+export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini, onRevert }: MiniEditorProps) {
   const selectedMini = minis.find((mini) => mini.id === selectedMiniId) ?? minis[0];
   const [showStepIds, setShowStepIds] = useState(true);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
@@ -150,16 +151,34 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
         </div>
       </div>
 
-      <div className="mini-tabs">
-        {minis.map((mini) => (
-          <button
-            key={mini.id}
-            className={mini.id === selectedMini.id ? "mini-tab active" : "mini-tab"}
-            onClick={() => onSelectMini(mini.id)}
+      <div className="mini-tabs-row">
+        <div className="mini-tabs">
+          {minis.map((mini) => (
+            <button
+              key={mini.id}
+              className={mini.id === selectedMini.id ? "mini-tab active" : "mini-tab"}
+              onClick={() => onSelectMini(mini.id)}
+            >
+              Mini {mini.miniIndex}
+            </button>
+          ))}
+        </div>
+        <label className="version-select-label">
+          <span>Version</span>
+          <select
+            className="version-select"
+            value={selectedMini.currentVersionId}
+            onChange={(event) => {
+              if (event.target.value !== selectedMini.currentVersionId) onRevert(event.target.value);
+            }}
           >
-            Mini {mini.miniIndex}
-          </button>
-        ))}
+            {selectedMini.versions.slice().reverse().map((version) => (
+              <option key={version.id} value={version.id}>
+                v{version.versionNumber} · {version.source} · {version.summary}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="mini-title-bar">

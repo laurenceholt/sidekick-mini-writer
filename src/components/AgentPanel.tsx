@@ -1,4 +1,4 @@
-import { History, MessageSquareText, RotateCcw, Wand2 } from "lucide-react";
+import { MessageSquareText, Send } from "lucide-react";
 import type { AgentMessage, Mini } from "../lib/types";
 
 interface AgentPanelProps {
@@ -6,11 +6,9 @@ interface AgentPanelProps {
   messages: AgentMessage[];
   busyLabel: string | null;
   onSend: (prompt: string) => void;
-  onProcessNotes: () => void;
-  onRevert: (versionId: string) => void;
 }
 
-export function AgentPanel({ mini, messages, busyLabel, onSend, onProcessNotes, onRevert }: AgentPanelProps) {
+export function AgentPanel({ mini, messages, busyLabel, onSend }: AgentPanelProps) {
   const isBusy = Boolean(busyLabel);
 
   return (
@@ -24,7 +22,7 @@ export function AgentPanel({ mini, messages, busyLabel, onSend, onProcessNotes, 
       </div>
 
       <div className="chat-log">
-        {messages.length === 0 && <p className="muted">Ask for a revision or process step notes.</p>}
+        {messages.length === 0 && <p className="muted">Ask for revisions, ideas, or type “process notes”.</p>}
         {messages.map((message) => (
           <div key={message.id} className={message.role === "writer" ? "chat-message writer" : "chat-message agent"}>
             {message.content}
@@ -51,36 +49,10 @@ export function AgentPanel({ mini, messages, busyLabel, onSend, onProcessNotes, 
         }}
       >
         <textarea name="prompt" placeholder="Ask the agent to revise this mini" disabled={isBusy || !mini} />
-        <button className="primary-button" type="submit" disabled={isBusy || !mini}>
-          <Wand2 size={17} />
-          {isBusy ? "Working" : "Send to agent"}
+        <button className="send-button" type="submit" aria-label="Send to agent" disabled={isBusy || !mini}>
+          <Send size={16} />
         </button>
       </form>
-
-      <button className="secondary-button full" onClick={onProcessNotes} disabled={!mini || isBusy}>
-        <Wand2 size={17} />
-        Process agent notes
-      </button>
-
-      <section className="history-section">
-        <div className="section-title">
-          <History size={16} />
-          Versions
-        </div>
-        {!mini && <p className="muted">No mini selected.</p>}
-        {mini?.versions.slice().reverse().map((version) => (
-          <div className="version-row" key={version.id}>
-            <div>
-              <strong>v{version.versionNumber}</strong>
-              <span>{version.source}</span>
-              <p>{version.summary}</p>
-            </div>
-            <button className="icon-button" aria-label={`Revert to version ${version.versionNumber}`} onClick={() => onRevert(version.id)}>
-              <RotateCcw size={16} />
-            </button>
-          </div>
-        ))}
-      </section>
     </aside>
   );
 }
