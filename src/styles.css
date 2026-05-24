@@ -274,7 +274,7 @@ h2 {
 .mini-title-input,
 .textarea,
 .step-table textarea,
-.target-label input,
+.target-row input,
 .agent-form textarea,
 .mini-field input {
   width: 100%;
@@ -289,7 +289,7 @@ h2 {
 .input,
 .title-input,
 .mini-title-input,
-.target-label input,
+.target-row input,
 .mini-field input {
   min-height: 40px;
   padding: 7px 9px;
@@ -301,7 +301,7 @@ h2 {
 .mini-title-input:focus,
 .textarea:focus,
 .step-table textarea:focus,
-.target-label input:focus,
+.target-row input:focus,
 .agent-form textarea:focus,
 .mini-field input:focus {
   border-color: var(--minis-green);
@@ -640,15 +640,26 @@ h2 {
   font-size: 13px;
 }
 
-.target-label {
+.target-row {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 6px;
   margin-top: 6px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.target-row span {
+  flex: 0 0 auto;
+}
+
+.target-row input {
+  min-height: 28px;
+  padding: 4px 7px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .row-actions {

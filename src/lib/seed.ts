@@ -38,38 +38,38 @@ export const seedKc: KnowledgeComponent = {
 
 const rawSteps: Omit<MiniStep, "id">[] = [
   {
-    instruction: "Look at 3 + 4 = 7. Is this equation true or false?",
+    instruction: "Is this equation true or false?",
     interaction: "Two expression cards: 3 + 4 and 7. User chooses True or False.",
     targetResponse: "True",
-    hint: "Evaluate the left side. 3 + 4 equals 7.",
+    hint: "Evaluate the left side, then compare it to the right side.",
     agentNotes: "",
   },
   {
-    instruction: "Look at 9 - 2 = 8. Is this equation true or false?",
+    instruction: "Is this equation true or false?",
     interaction: "Two expression cards: 9 - 2 and 8. User chooses True or False.",
     targetResponse: "False",
-    hint: "9 - 2 equals 7, not 8.",
+    hint: "Evaluate the left side, then compare it to the right side.",
     agentNotes: "",
   },
   {
-    instruction: "An equation is true when both sides have the same value. Is 6 x 3 = 18 true or false?",
+    instruction: "Both sides need the same value. Is this equation true or false?",
     interaction: "User chooses True or False. Show 6 x 3 on the left and 18 on the right.",
     targetResponse: "True",
     hint: "Find the value of the left side first.",
     agentNotes: "",
   },
   {
-    instruction: "Is 0.4 x 15 = 20 true or false?",
-    interaction: "User chooses True or False. Include a small calculator-style evaluation area for the left side.",
+    instruction: "Is this equation true or false?",
+    interaction: "Show 0.4 x 15 = 20. User chooses True or False. Include a small calculator-style evaluation area for the left side.",
     targetResponse: "False",
-    hint: "0.4 x 15 = 6. Does 6 equal 20?",
+    hint: "Evaluate the left side, then compare it to 20.",
     agentNotes: "Keep this close to the attached worked example.",
   },
   {
-    instruction: "Substitute 3/8 for y. Is y + 1/2 = 7/8 true or false?",
+    instruction: "Substitute 3/8 for y. Is this equation true or false?",
     interaction: "Show substitution: blank + 1/2 = 7/8; user chooses True or False.",
     targetResponse: "True",
-    hint: "1/2 is the same as 4/8.",
+    hint: "Rewrite the fractions with the same denominator before comparing.",
     agentNotes: "",
   },
   {
@@ -80,10 +80,10 @@ const rawSteps: Omit<MiniStep, "id">[] = [
     agentNotes: "",
   },
   {
-    instruction: "Substitute 4 for x. Is 3x = 10 true or false?",
+    instruction: "Substitute 4 for x. Is this equation true or false?",
     interaction: "User enters the value of `3x`, then chooses True or False.",
     targetResponse: "12; False",
-    hint: "3 x 4 = 12. Compare 12 with 10.",
+    hint: "Replace x with 4, then compare your result with 10.",
     agentNotes: "",
   },
   {
@@ -97,7 +97,7 @@ const rawSteps: Omit<MiniStep, "id">[] = [
     instruction: "Which value makes 0.4x = 20 true: 15 or 50?",
     interaction: "Two choice buttons: 15 and 50. User can preview each substitution.",
     targetResponse: "50",
-    hint: "0.4 x 50 = 20.",
+    hint: "Try each value in the equation and see which one makes both sides match.",
     agentNotes: "",
   },
   {

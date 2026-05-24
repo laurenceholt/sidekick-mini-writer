@@ -269,8 +269,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                 </td>
                 <td>
                   <textarea value={step.interaction} onChange={(event) => updateStep(step.id, { interaction: event.target.value })} />
-                  <label className="target-label">
-                    Target
+                  <label className="target-row">
+                    <span>Target</span>
                     <input value={step.targetResponse} onChange={(event) => updateStep(step.id, { targetResponse: event.target.value })} />
                   </label>
                 </td>

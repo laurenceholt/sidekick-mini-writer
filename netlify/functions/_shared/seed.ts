@@ -37,15 +37,15 @@ export const seedKc: KnowledgeComponent = {
 };
 
 const rawStepRows: [string, string, string, string, string][] = [
-  ["Look at 3 + 4 = 7. Is this equation true or false?", "Two expression cards: 3 + 4 and 7. User chooses True or False.", "True", "Evaluate the left side. 3 + 4 equals 7.", ""],
-  ["Look at 9 - 2 = 8. Is this equation true or false?", "Two expression cards: 9 - 2 and 8. User chooses True or False.", "False", "9 - 2 equals 7, not 8.", ""],
-  ["An equation is true when both sides have the same value. Is 6 x 3 = 18 true or false?", "User chooses True or False.", "True", "Find the value of the left side first.", ""],
-  ["Is 0.4 x 15 = 20 true or false?", "User chooses True or False.", "False", "0.4 x 15 = 6. Does 6 equal 20?", "Keep this close to the attached worked example."],
-  ["Substitute 3/8 for y. Is y + 1/2 = 7/8 true or false?", "Show substitution; user chooses True or False.", "True", "1/2 is the same as 4/8.", ""],
+  ["Is this equation true or false?", "Two expression cards: 3 + 4 and 7. User chooses True or False.", "True", "Evaluate the left side, then compare it to the right side.", ""],
+  ["Is this equation true or false?", "Two expression cards: 9 - 2 and 8. User chooses True or False.", "False", "Evaluate the left side, then compare it to the right side.", ""],
+  ["Both sides need the same value. Is this equation true or false?", "Show 6 x 3 on the left and 18 on the right. User chooses True or False.", "True", "Find the value of the left side first.", ""],
+  ["Is this equation true or false?", "Show 0.4 x 15 = 20. User chooses True or False.", "False", "Evaluate the left side, then compare it to 20.", "Keep this close to the attached worked example."],
+  ["Substitute 3/8 for y. Is this equation true or false?", "Show substitution; user chooses True or False.", "True", "Rewrite the fractions with the same denominator before comparing.", ""],
   ["Substitute 5 for n. Is 2n + 1 = 11 true or false?", "User enters value, then chooses True or False.", "11; True", "Replace n with 5.", ""],
-  ["Substitute 4 for x. Is 3x = 10 true or false?", "User enters value, then chooses True or False.", "12; False", "3 x 4 = 12.", ""],
+  ["Substitute 4 for x. Is this equation true or false?", "User enters value, then chooses True or False.", "12; False", "Replace x with 4, then compare your result with 10.", ""],
   ["Which value makes a + 6 = 14 true: 7 or 8?", "Two choice buttons: 7 and 8.", "8", "The value must make the left side equal 14.", ""],
-  ["Which value makes 0.4x = 20 true: 15 or 50?", "Two choice buttons: 15 and 50.", "50", "0.4 x 50 = 20.", ""],
+  ["Which value makes 0.4x = 20 true: 15 or 50?", "Two choice buttons: 15 and 50.", "50", "Try each value in the equation and see which one makes both sides match.", ""],
   ["Explain why 0.4 x 15 = 20 is false in one sentence.", "Short text response.", "Because 0.4 x 15 = 6, and 6 is not equal to 20.", "Start by evaluating the left side.", "This is the final reflection; keep it short."],
 ];
 

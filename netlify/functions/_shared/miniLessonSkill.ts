@@ -16,7 +16,8 @@ Mini-lesson arc:
 - Synthesis: final step ties the mini together and is slightly harder than the opener.
 
 Instruction style:
-- Student-facing, short, conversational, usually one or two sentences.
+- Student-facing, as succinct as possible, conversational, usually one short sentence.
+- Do not repeat information already visible in the interaction. If the interaction shows an equation, refer to "this equation" instead of restating it.
 - Drop the student into work. Do not front-load definitions or overview.
 - Avoid "Let's explore", "Let's dive in", "Let's break this down", and "Now we will learn about".
 - Avoid repetitive praise.
@@ -31,8 +32,8 @@ Interaction style:
 
 Hints:
 - One sentence when possible.
-- Give a next move or concept reminder.
-- Do not reveal the answer.
+- Give a next move or concept reminder, but do not do the step for the learner.
+- Do not reveal the answer, perform the calculation, or complete the substitution.
 
 Illustrations:
 - Small, concrete, cartoonish, context-specific, unobtrusive.

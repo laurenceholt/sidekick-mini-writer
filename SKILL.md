@@ -49,7 +49,9 @@ Every step has an Instruction, an Interaction, and (optionally) a Hint.
 
 ### The Instruction column
 
-This is the student-facing prompt. Keep it short — usually one or two sentences. Conversational, not formal. Imperatives are fine ("Plot -7"). Terse transitions move the student along: "Bigger numbers now." "Try without a number line." "Now try this one."
+This is the student-facing prompt. Make it as succinct as possible — usually one short sentence, occasionally two. Conversational, not formal. Imperatives are fine ("Plot -7"). Terse transitions move the student along: "Bigger numbers now." "Try without a number line." "Now try this one."
+
+Do not repeat information that is already visible in the interaction. If the interaction displays an equation, the instruction does not need to restate it. Refer to it naturally: "Is this equation true?" or "Solve this equation." Let the interaction carry the equation, graph, table, choices, or visual details.
 
 Drop the student into the work. Never open a step with a definition or an overview. If a definition is needed, embed it inside the step alongside an action: "Numbers to the left of 0 are negative. Which is more negative, -3 or -5?" The definition rides along with a question, not as a paragraph before the work starts.
 
@@ -75,12 +77,12 @@ Vary the interaction type across consecutive steps. Ten "Which is greater?" mult
 
 Hints appear when a student gets a step wrong. Keep them to one sentence, occasionally two. Two types do most of the work:
 
-- *Procedural hints* tell the student what to do next without revealing the answer. "Count along the buildings first, then up the floors."
+- *Procedural hints* tell the student what to do next without revealing the answer or doing the step for them. "Count along the buildings first, then up the floors."
 - *Conceptual hints* refresh the underlying idea. "Less than means farther to the left on the number line."
 
 Some hints reference an earlier step or mini-lesson concept ("Remember, -1 + 1 = 0"). That's often more efficient than re-explaining.
 
-Never give the answer in a hint. The hint's job is to point, not solve.
+Never give the answer in a hint. The hint's job is to point, not solve. A hint may tell the learner which step to take ("Check whether the two sides have the same value"), but it should not actually perform the calculation or substitution for them.
 
 ## Illustrations
 
