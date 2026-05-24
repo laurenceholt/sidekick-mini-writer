@@ -14,25 +14,74 @@ type RevisionResult = {
 
 function parseRevisionResponse(text: string, originalSteps: MiniStep[]): RevisionResult {
   const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-  try {
-    const parsed = JSON.parse(cleaned) as RevisionResult;
-    if (typeof parsed.updateMini !== "boolean" || !Array.isArray(parsed.steps) || typeof parsed.response !== "string") {
-      throw new Error("Invalid revision response shape");
-    }
+  const parsed = parseRevisionCandidate(cleaned);
+  if (parsed) {
     return {
       updateMini: parsed.updateMini,
       steps: parsed.updateMini ? parsed.steps : originalSteps,
       response: parsed.response,
       summary: parsed.summary || (parsed.updateMini ? "Agent revision." : "No mini changes."),
     };
-  } catch {
-    return {
-      updateMini: false,
-      steps: originalSteps,
-      response: cleaned || "I could not format a response, but I did not change the mini.",
-      summary: "No mini changes.",
-    };
   }
+  return {
+    updateMini: false,
+    steps: originalSteps,
+    response: cleaned || "I could not format a response, but I did not change the mini.",
+    summary: "No mini changes.",
+  };
+}
+
+function parseRevisionCandidate(text: string): RevisionResult | null {
+  const candidates = [text, ...extractJsonObjects(text)];
+  for (const candidate of candidates) {
+    const parsed = parseCandidate(candidate);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function parseCandidate(candidate: string): RevisionResult | null {
+  try {
+    const parsed = JSON.parse(candidate) as RevisionResult;
+    if (typeof parsed.updateMini !== "boolean" || !Array.isArray(parsed.steps) || typeof parsed.response !== "string") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonObjects(text: string) {
+  const objects: string[] = [];
+  for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < text.length; index += 1) {
+      const char = text[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = inString;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (char === "{") depth += 1;
+      if (char === "}") depth -= 1;
+      if (depth === 0) {
+        objects.push(text.slice(start, index + 1));
+        break;
+      }
+    }
+  }
+  return objects.reverse();
 }
 
 function streamJson<T>(work: Promise<T>) {
