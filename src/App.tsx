@@ -15,6 +15,13 @@ import type { AgentMessage, KnowledgeComponent, Mini, WorkspaceData } from "./li
 const DEFAULT_WRITER = "Laurence";
 const WRITER_KEY = "mini-writer:selected-writer";
 const KC_PANEL_COLLAPSED_KEY = "mini-writer:kc-panel-collapsed";
+const THINKING_LABELS = [
+  "Thinking...",
+  "Reading the mini...",
+  "Checking the skill guidance...",
+  "Researching sources...",
+  "Drafting a response...",
+];
 
 function addMessage(role: AgentMessage["role"], content: string): AgentMessage {
   return {
@@ -98,6 +105,16 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(KC_PANEL_COLLAPSED_KEY, String(kcPanelCollapsed));
   }, [kcPanelCollapsed]);
+
+  useEffect(() => {
+    if (!agentBusyLabel || !THINKING_LABELS.includes(agentBusyLabel)) return;
+    let index = THINKING_LABELS.indexOf(agentBusyLabel);
+    const interval = window.setInterval(() => {
+      index = (index + 1) % THINKING_LABELS.length;
+      setAgentBusyLabel(THINKING_LABELS[index]);
+    }, 4_000);
+    return () => window.clearInterval(interval);
+  }, [agentBusyLabel]);
 
   const selectedKc = workspace.kcs.find((kc) => kc.id === selectedKcId) ?? null;
   const minisForKc = useMemo(

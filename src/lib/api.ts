@@ -24,8 +24,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   });
-  if (!res.ok) throw new Error(formatApiError(path, await res.text()));
-  return res.json() as Promise<T>;
+  const body = await res.text();
+  if (!res.ok) throw new Error(formatApiError(path, body));
+  const parsed = body ? JSON.parse(body) : null;
+  if (parsed?.error) throw new Error(parsed.error);
+  return parsed as T;
 }
 
 export async function fetchWorkspace(writerName: string): Promise<WorkspaceData> {
