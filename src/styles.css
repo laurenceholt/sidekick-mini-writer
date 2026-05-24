@@ -908,8 +908,8 @@ h2 {
 }
 
 .agent-form textarea {
-  min-height: 42px;
-  max-height: 130px;
+  min-height: 92px;
+  max-height: 180px;
   resize: vertical;
 }
 

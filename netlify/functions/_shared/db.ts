@@ -5,6 +5,7 @@ import { seedKc, seedMini } from "./seed";
 import type { KnowledgeComponent, Mini, MiniStep, MiniVersion } from "./types";
 
 const TABLES = {
+  writers: "mini_writer_writers",
   kcs: "mini_writer_kcs",
   minis: "mini_writer_minis",
   versions: "mini_writer_mini_versions",
@@ -13,30 +14,24 @@ const TABLES = {
 
 const MANUAL_VERSION_WINDOW_MS = 60_000;
 export const DEFAULT_WRITER = "Laurence";
-const WRITER_MARKER = /^<!--\s*mini-writer-writer:([^>]+?)\s*-->\s*/;
+const LEGACY_WRITER_MARKER = /^<!--\s*mini-writer-writer:[^>]+?-->\s*/;
 
 function cleanWriterName(value?: string | null) {
   const name = value?.trim();
   return name || DEFAULT_WRITER;
 }
 
-function splitWriterNotes(notes?: string | null) {
-  const raw = notes ?? "";
-  const match = raw.match(WRITER_MARKER);
-  if (!match) return { writerName: DEFAULT_WRITER, notesMd: raw };
-  try {
-    return { writerName: cleanWriterName(decodeURIComponent(match[1].trim())), notesMd: raw.replace(WRITER_MARKER, "") };
-  } catch {
-    return { writerName: DEFAULT_WRITER, notesMd: raw.replace(WRITER_MARKER, "") };
-  }
-}
-
-function notesWithWriter(notes: string | undefined, writerName: string | undefined) {
-  return `<!-- mini-writer-writer:${encodeURIComponent(cleanWriterName(writerName))} -->\n${notes ?? ""}`;
+function stripLegacyWriterMarker(notes?: string | null) {
+  return (notes ?? "").replace(LEGACY_WRITER_MARKER, "");
 }
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "kc";
+}
+
+function isMissingWriterSchema(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return message.includes(TABLES.writers) || message.includes("writer_id") || message.includes("PGRST200") || message.includes("42P01") || message.includes("42703");
 }
 
 function client() {
@@ -46,11 +41,10 @@ function client() {
   return createClient(url, key);
 }
 
-export function toKc(row: Record<string, any>): KnowledgeComponent {
-  const { writerName, notesMd } = splitWriterNotes(row.notes_md);
+export function toKc(row: Record<string, any>, writerName = DEFAULT_WRITER): KnowledgeComponent {
   return {
     id: row.id,
-    writerName,
+    writerName: row.writer_name ?? row.writer?.name ?? writerName,
     title: row.title,
     slug: row.slug,
     grade: row.grade,
@@ -60,7 +54,7 @@ export function toKc(row: Record<string, any>): KnowledgeComponent {
     response: row.response,
     workedExampleMd: row.worked_example_md,
     standards: row.standards ?? [],
-    notesMd,
+    notesMd: stripLegacyWriterMarker(row.notes_md),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -77,7 +71,7 @@ function kcRow(kc: Partial<KnowledgeComponent>) {
     response: kc.response,
     worked_example_md: kc.workedExampleMd,
     standards: kc.standards,
-    notes_md: notesWithWriter(kc.notesMd, kc.writerName),
+    notes_md: stripLegacyWriterMarker(kc.notesMd),
   };
 }
 
@@ -85,22 +79,68 @@ export async function listKcs(writerName = DEFAULT_WRITER) {
   const db = client();
   const writer = cleanWriterName(writerName);
   if (!db) return writer === DEFAULT_WRITER ? [seedKc] : [];
+  const writerRow = await getWriterByName(writer);
+  if (writerRow) {
+    const { data, error } = await db.from(TABLES.kcs).select("*").eq("writer_id", writerRow.id).order("updated_at", { ascending: false });
+    if (error) {
+      if (!isMissingWriterSchema(error)) throw error;
+    } else {
+      if (!data.length && writer === DEFAULT_WRITER) return [await ensureSeedData(db)];
+      return data.map((row) => toKc(row, writer));
+    }
+  } else if (await writerSchemaExists()) {
+    return [];
+  }
+  if (writer !== DEFAULT_WRITER) return [];
   const { data, error } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
   if (error) throw error;
   if (!data.length && writer === DEFAULT_WRITER) return [await ensureSeedData(db)];
-  const kcs = data.map(toKc).filter((kc) => kc.writerName === writer);
-  if (!kcs.length && writer === DEFAULT_WRITER && !data.some((row) => row.id === seedKc.id)) return [await ensureSeedData(db)];
-  return kcs;
+  return data.map((row) => toKc(row, writer));
 }
 
 export async function listWriters() {
   const db = client();
   if (!db) return [DEFAULT_WRITER];
-  const { data, error } = await db.from(TABLES.kcs).select("notes_md");
-  if (error) throw error;
-  const writers = new Set((data ?? []).map((row) => splitWriterNotes(row.notes_md).writerName));
+  const { data, error } = await db.from(TABLES.writers).select("name").order("name");
+  if (error) {
+    if (!isMissingWriterSchema(error)) throw error;
+    return [DEFAULT_WRITER];
+  }
+  const writers = new Set((data ?? []).map((row) => cleanWriterName(row.name)));
   writers.add(DEFAULT_WRITER);
   return [...writers].sort((a, b) => a.localeCompare(b));
+}
+
+async function writerSchemaExists() {
+  const db = client();
+  if (!db) return false;
+  const { error } = await db.from(TABLES.writers).select("id", { head: true }).limit(1);
+  return !error;
+}
+
+async function getWriterByName(name: string) {
+  const db = client();
+  if (!db) return null;
+  const { data, error } = await db.from(TABLES.writers).select("*").eq("name", cleanWriterName(name)).maybeSingle();
+  if (error) {
+    if (isMissingWriterSchema(error)) return null;
+    throw error;
+  }
+  return data;
+}
+
+async function ensureWriter(name: string) {
+  const db = client();
+  if (!db) return null;
+  const clean = cleanWriterName(name);
+  const existing = await getWriterByName(clean);
+  if (existing) return existing;
+  const { data, error } = await db.from(TABLES.writers).insert({ name: clean }).select("*").single();
+  if (error) {
+    if (isMissingWriterSchema(error)) return null;
+    throw error;
+  }
+  return data;
 }
 
 export async function getKc(id: string) {
@@ -110,27 +150,41 @@ export async function getKc(id: string) {
   if (error) throw error;
   if (!data && id === seedKc.id) return ensureSeedData(db);
   if (!data) return null;
-  return toKc(data);
+  const writerName = data.writer_id ? (await getWriterNameById(data.writer_id)) : DEFAULT_WRITER;
+  return toKc(data, writerName);
+}
+
+async function getWriterNameById(id: string) {
+  const db = client();
+  if (!db) return DEFAULT_WRITER;
+  const { data, error } = await db.from(TABLES.writers).select("name").eq("id", id).maybeSingle();
+  if (error) {
+    if (isMissingWriterSchema(error)) return DEFAULT_WRITER;
+    throw error;
+  }
+  return cleanWriterName(data?.name);
 }
 
 export async function insertKc(data: Record<string, any>, writerName = DEFAULT_WRITER) {
   const db = client();
   const writer = cleanWriterName(writerName);
-  const row: Record<string, any> = { ...data, notes_md: notesWithWriter(data.notes_md, writer) };
+  const writerRow = await ensureWriter(writer);
+  const row: Record<string, any> = { ...data, writer_id: writerRow?.id, notes_md: stripLegacyWriterMarker(data.notes_md), writerName: undefined };
   if (!db) return { ...seedKc, ...toKcLike(row), writerName: writer, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   const baseSlug = slugify(row.slug ?? row.title ?? "kc");
   const { data: existingSlug, error: slugError } = await db.from(TABLES.kcs).select("id").eq("slug", baseSlug).maybeSingle();
   if (slugError) throw slugError;
-  const insertRow = { ...row, slug: existingSlug ? `${baseSlug}_${crypto.randomUUID().slice(0, 8)}` : baseSlug };
+  const insertRow: Record<string, any> = { ...row, slug: existingSlug ? `${baseSlug}_${crypto.randomUUID().slice(0, 8)}` : baseSlug };
+  delete insertRow.writerName;
+  if (!insertRow.writer_id) delete insertRow.writer_id;
   const { data: inserted, error } = await db.from(TABLES.kcs).insert(insertRow).select("*").single();
   if (error) throw error;
-  return toKc(inserted);
+  return toKc(inserted, writer);
 }
 
 function toKcLike(row: Record<string, any>) {
-  const { writerName, notesMd } = splitWriterNotes(row.notes_md);
   return {
-    writerName,
+    writerName: row.writerName ?? DEFAULT_WRITER,
     title: row.title,
     slug: row.slug,
     grade: row.grade,
@@ -140,7 +194,7 @@ function toKcLike(row: Record<string, any>) {
     response: row.response,
     workedExampleMd: row.worked_example_md,
     standards: row.standards ?? [],
-    notesMd,
+    notesMd: stripLegacyWriterMarker(row.notes_md),
   };
 }
 
@@ -325,12 +379,14 @@ export async function logFeedback(entry: Record<string, any>) {
 }
 
 async function ensureSeedData(db: SupabaseClient<any>) {
+  const writerRow = await ensureWriter(seedKc.writerName);
   const { data: existing, error: existingError } = await db.from(TABLES.kcs).select("*").eq("id", seedKc.id).maybeSingle();
   if (existingError) throw existingError;
   if (existing) return toKc(existing);
 
   const seedRow = {
     id: seedKc.id,
+    writer_id: writerRow?.id,
     title: seedKc.title,
     slug: seedKc.slug,
     grade: seedKc.grade,
@@ -340,7 +396,7 @@ async function ensureSeedData(db: SupabaseClient<any>) {
     response: seedKc.response,
     worked_example_md: seedKc.workedExampleMd,
     standards: seedKc.standards,
-    notes_md: notesWithWriter(seedKc.notesMd, seedKc.writerName),
+    notes_md: stripLegacyWriterMarker(seedKc.notesMd),
   };
   const { data: inserted, error: insertError } = await db.from(TABLES.kcs).insert(seedRow).select("*").single();
   if (insertError) throw insertError;

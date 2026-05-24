@@ -1,7 +1,19 @@
 create extension if not exists pgcrypto;
 
+create table if not exists public.mini_writer_writers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+insert into public.mini_writer_writers (name)
+values ('Laurence')
+on conflict (name) do nothing;
+
 create table if not exists public.mini_writer_kcs (
   id uuid primary key default gen_random_uuid(),
+  writer_id uuid references public.mini_writer_writers(id) on delete set null,
   title text not null,
   slug text not null unique,
   grade integer not null default 6,
@@ -15,6 +27,30 @@ create table if not exists public.mini_writer_kcs (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+do $$
+declare
+  default_writer_id uuid;
+begin
+  select id into default_writer_id
+  from public.mini_writer_writers
+  where name = 'Laurence';
+
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'mini_writer_kcs'
+      and column_name = 'writer_id'
+  ) then
+    alter table public.mini_writer_kcs
+      add column writer_id uuid references public.mini_writer_writers(id) on delete set null;
+  end if;
+
+  update public.mini_writer_kcs
+  set writer_id = default_writer_id
+  where writer_id is null;
+end $$;
 
 create table if not exists public.mini_writer_minis (
   id uuid primary key default gen_random_uuid(),
@@ -79,11 +115,17 @@ create trigger mini_writer_set_kcs_updated_at
 before update on public.mini_writer_kcs
 for each row execute function public.mini_writer_set_updated_at();
 
+drop trigger if exists mini_writer_set_writers_updated_at on public.mini_writer_writers;
+create trigger mini_writer_set_writers_updated_at
+before update on public.mini_writer_writers
+for each row execute function public.mini_writer_set_updated_at();
+
 drop trigger if exists mini_writer_set_minis_updated_at on public.mini_writer_minis;
 create trigger mini_writer_set_minis_updated_at
 before update on public.mini_writer_minis
 for each row execute function public.mini_writer_set_updated_at();
 
+alter table public.mini_writer_writers enable row level security;
 alter table public.mini_writer_kcs enable row level security;
 alter table public.mini_writer_minis enable row level security;
 alter table public.mini_writer_mini_versions enable row level security;
