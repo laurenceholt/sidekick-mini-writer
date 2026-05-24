@@ -148,6 +148,10 @@ button:disabled {
   padding: 10px;
 }
 
+.app-shell.kc-panel-collapsed {
+  grid-template-columns: 54px minmax(700px, 1fr) minmax(270px, 320px);
+}
+
 .panel,
 .main-panel {
   min-height: 0;
@@ -160,6 +164,16 @@ button:disabled {
 
 .panel {
   padding: 14px;
+}
+
+.collapsed-panel {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  padding: 10px 8px;
 }
 
 .main-panel {
@@ -183,6 +197,12 @@ button:disabled {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 h1,
@@ -301,6 +321,42 @@ h2 {
 
 .icon-button.danger {
   color: #b42318;
+}
+
+.collapse-button {
+  width: 34px;
+}
+
+.collapsed-kc {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted-strong);
+}
+
+.collapsed-label,
+.collapsed-id {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+}
+
+.collapsed-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.collapsed-id {
+  border-radius: 999px;
+  background: rgb(45 190 96 / 10%);
+  color: #1e7f43;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 8px 5px;
 }
 
 .kc-title-row,
@@ -720,7 +776,15 @@ h2 {
     min-height: 0;
   }
 
+  .app-shell.kc-panel-collapsed {
+    grid-template-columns: 54px minmax(560px, 1fr);
+  }
+
   .agent-panel {
+    grid-column: 1 / -1;
+  }
+
+  .app-shell.kc-panel-collapsed .agent-panel {
     grid-column: 1 / -1;
   }
 }
@@ -729,6 +793,29 @@ h2 {
   .app-shell {
     grid-template-columns: 1fr;
     padding: 8px;
+  }
+
+  .app-shell.kc-panel-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .collapsed-panel {
+    min-height: 52px;
+    align-items: center;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 8px 10px;
+  }
+
+  .collapsed-kc {
+    align-items: center;
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .collapsed-label,
+  .collapsed-id {
+    writing-mode: horizontal-tb;
   }
 
   .brand-header {

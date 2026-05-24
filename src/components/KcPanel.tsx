@@ -1,17 +1,43 @@
-import { BookOpen, FilePlus2, Sparkles } from "lucide-react";
+import { BookOpen, FilePlus2, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
 import type { KnowledgeComponent } from "../lib/types";
 
 interface KcPanelProps {
   kcs: KnowledgeComponent[];
   selectedKc: KnowledgeComponent;
   dirty: boolean;
+  collapsed: boolean;
   onSelect: (id: string) => void;
   onChange: (kc: KnowledgeComponent) => void;
   onCreate: (title: string) => void;
   onGenerateMini: () => void;
+  onToggleCollapsed: () => void;
 }
 
-export function KcPanel({ kcs, selectedKc, dirty, onSelect, onChange, onCreate, onGenerateMini }: KcPanelProps) {
+export function KcPanel({
+  kcs,
+  selectedKc,
+  dirty,
+  collapsed,
+  onSelect,
+  onChange,
+  onCreate,
+  onGenerateMini,
+  onToggleCollapsed,
+}: KcPanelProps) {
+  if (collapsed) {
+    return (
+      <aside className="panel left-panel collapsed-panel" aria-label="Knowledge component panel collapsed">
+        <button className="icon-button collapse-button" aria-label="Expand KC panel" onClick={onToggleCollapsed}>
+          <PanelLeftOpen size={18} />
+        </button>
+        <div className="collapsed-kc">
+          <span className="collapsed-label">KC</span>
+          <span className="collapsed-id">{selectedKc.grade}-{selectedKc.unit}-{selectedKc.lesson}</span>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="panel left-panel">
       <div className="panel-header">
@@ -19,7 +45,12 @@ export function KcPanel({ kcs, selectedKc, dirty, onSelect, onChange, onCreate, 
           <p className="eyebrow">Knowledge component</p>
           <h1>mini-writer</h1>
         </div>
-        <span className={dirty ? "save-state saving" : "save-state"}>{dirty ? "Saving" : "Saved"}</span>
+        <div className="panel-header-actions">
+          <span className={dirty ? "save-state saving" : "save-state"}>{dirty ? "Saving" : "Saved"}</span>
+          <button className="icon-button collapse-button" aria-label="Collapse KC panel" onClick={onToggleCollapsed}>
+            <PanelLeftClose size={18} />
+          </button>
+        </div>
       </div>
 
       <label className="field-label" htmlFor="kc-select">Previous KCs</label>

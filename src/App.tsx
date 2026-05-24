@@ -21,12 +21,15 @@ function addMessage(role: AgentMessage["role"], content: string): AgentMessage {
   };
 }
 
+const KC_PANEL_COLLAPSED_KEY = "mini-writer:kc-panel-collapsed";
+
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceData>(seedWorkspace);
   const [selectedKcId, setSelectedKcId] = useState(seedWorkspace.kcs[0].id);
   const [selectedMiniId, setSelectedMiniId] = useState<string | null>(seedWorkspace.minis[0].id);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
 
@@ -53,6 +56,10 @@ export default function App() {
     }, 500);
     return () => window.clearTimeout(timeout);
   }, [dirty, workspace]);
+
+  useEffect(() => {
+    localStorage.setItem(KC_PANEL_COLLAPSED_KEY, String(kcPanelCollapsed));
+  }, [kcPanelCollapsed]);
 
   const selectedKc = workspace.kcs.find((kc) => kc.id === selectedKcId) ?? workspace.kcs[0];
   const minisForKc = useMemo(
@@ -205,11 +212,12 @@ export default function App() {
           <h1>mini-writer</h1>
         </div>
       </header>
-      <main className="app-shell">
+      <main className={kcPanelCollapsed ? "app-shell kc-panel-collapsed" : "app-shell"}>
         <KcPanel
           kcs={workspace.kcs}
           selectedKc={selectedKc}
           dirty={dirty}
+          collapsed={kcPanelCollapsed}
           onSelect={(id) => {
             setSelectedKcId(id);
             setSelectedMiniId(workspace.minis.find((mini) => mini.kcId === id)?.id ?? null);
@@ -217,6 +225,7 @@ export default function App() {
           onChange={handleKcChange}
           onCreate={handleCreateKc}
           onGenerateMini={handleGenerateMini}
+          onToggleCollapsed={() => setKcPanelCollapsed((current) => !current)}
         />
         <MiniEditor
           kc={selectedKc}
