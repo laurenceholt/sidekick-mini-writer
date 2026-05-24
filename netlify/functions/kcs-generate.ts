@@ -16,5 +16,5 @@ export default async (req: Request) => {
 };
 
 export const config: Config = {
-  path: "/api/kcs/generate",
+  path: "/api/generate-kc",
 };

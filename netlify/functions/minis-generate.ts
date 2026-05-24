@@ -52,5 +52,5 @@ Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}
 };
 
 export const config: Config = {
-  path: "/api/minis/generate",
+  path: "/api/generate-mini",
 };

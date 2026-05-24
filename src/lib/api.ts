@@ -36,9 +36,9 @@ export async function fetchWorkspace(): Promise<WorkspaceData> {
 }
 
 export const api = {
-  createKc: (title: string) => request<KnowledgeComponent>("/api/kcs/generate", { method: "POST", body: JSON.stringify({ title }) }),
+  createKc: (title: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ title }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
-  generateMini: (kcId: string) => request<Mini>("/api/minis/generate", { method: "POST", body: JSON.stringify({ kcId }) }),
+  generateMini: (kcId: string) => request<Mini>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),
   reviseMini: (miniId: string, prompt: string) => request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/revise`, { method: "POST", body: JSON.stringify({ prompt }) }),
   processNotes: (miniId: string) => request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/process-notes`, { method: "POST" }),
