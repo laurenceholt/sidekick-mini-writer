@@ -79,16 +79,24 @@ export async function listKcs(writerName = DEFAULT_WRITER) {
   const db = client();
   const writer = cleanWriterName(writerName);
   if (!db) return writer === DEFAULT_WRITER ? [seedKc] : [];
-  const writerRow = await getWriterByName(writer);
-  if (writerRow) {
+  const hasWriterSchema = await writerSchemaExists();
+  const writerRow = hasWriterSchema ? await ensureWriter(writer) : null;
+  if (hasWriterSchema && writerRow) {
     const { data, error } = await db.from(TABLES.kcs).select("*").eq("writer_id", writerRow.id).order("updated_at", { ascending: false });
     if (error) {
       if (!isMissingWriterSchema(error)) throw error;
     } else {
-      if (!data.length && writer === DEFAULT_WRITER) return [await ensureSeedData(db)];
-      return data.map((row) => toKc(row, writer));
+      if (data.length) return data.map((row) => toKc(row, writer));
+      if (writer !== DEFAULT_WRITER) return [];
+      const { data: legacy, error: legacyError } = await db.from(TABLES.kcs).select("*").is("writer_id", null).order("updated_at", { ascending: false });
+      if (legacyError) {
+        if (!isMissingWriterSchema(legacyError)) throw legacyError;
+      } else if (legacy.length) {
+        return legacy.map((row) => toKc(row, DEFAULT_WRITER));
+      }
+      return [await ensureSeedData(db)];
     }
-  } else if (await writerSchemaExists()) {
+  } else if (hasWriterSchema) {
     return [];
   }
   if (writer !== DEFAULT_WRITER) return [];
