@@ -3,6 +3,7 @@ import { AgentPanel } from "./components/AgentPanel";
 import { DeployMarker } from "./components/DeployMarker";
 import { KcPanel } from "./components/KcPanel";
 import { MiniEditor } from "./components/MiniEditor";
+import { MinisWordmark } from "./components/MinisWordmark";
 import { api, fetchWorkspace } from "./lib/api";
 import { createId } from "./lib/ids";
 import { applyAgentNotes, generateKcDraft, generateMiniForKc, reviseStepsFromPrompt } from "./lib/localAgent";
@@ -192,35 +193,48 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <KcPanel
-        kcs={workspace.kcs}
-        selectedKc={selectedKc}
-        dirty={dirty}
-        onSelect={(id) => {
-          setSelectedKcId(id);
-          setSelectedMiniId(workspace.minis.find((mini) => mini.kcId === id)?.id ?? null);
-        }}
-        onChange={handleKcChange}
-        onCreate={handleCreateKc}
-        onGenerateMini={handleGenerateMini}
-      />
-      <MiniEditor
-        kc={selectedKc}
-        minis={minisForKc}
-        selectedMiniId={selectedMini?.id ?? null}
-        onSelectMini={setSelectedMiniId}
-        onChangeMini={handleMiniChange}
-        onAddMini={handleAddMini}
-        onDeleteMini={handleDeleteMini}
-      />
-      <AgentPanel
-        mini={selectedMini}
-        messages={messages}
-        onSend={handleAgentSend}
-        onProcessNotes={handleProcessNotes}
-        onRevert={handleRevert}
-      />
+    <div className="app-frame">
+      <header className="brand-header">
+        <div className="brand-lockup">
+          <div className="brand-icon" aria-hidden>
+            <span className="brand-dot mustard" />
+            <span className="brand-dot green" />
+          </div>
+          <MinisWordmark size={36} />
+          <span className="brand-divider" aria-hidden />
+          <h1>mini-writer</h1>
+        </div>
+      </header>
+      <main className="app-shell">
+        <KcPanel
+          kcs={workspace.kcs}
+          selectedKc={selectedKc}
+          dirty={dirty}
+          onSelect={(id) => {
+            setSelectedKcId(id);
+            setSelectedMiniId(workspace.minis.find((mini) => mini.kcId === id)?.id ?? null);
+          }}
+          onChange={handleKcChange}
+          onCreate={handleCreateKc}
+          onGenerateMini={handleGenerateMini}
+        />
+        <MiniEditor
+          kc={selectedKc}
+          minis={minisForKc}
+          selectedMiniId={selectedMini?.id ?? null}
+          onSelectMini={setSelectedMiniId}
+          onChangeMini={handleMiniChange}
+          onAddMini={handleAddMini}
+          onDeleteMini={handleDeleteMini}
+        />
+        <AgentPanel
+          mini={selectedMini}
+          messages={messages}
+          onSend={handleAgentSend}
+          onProcessNotes={handleProcessNotes}
+          onRevert={handleRevert}
+        />
+      </main>
       <DeployMarker />
     </div>
   );
