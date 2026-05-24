@@ -16,6 +16,10 @@ interface MiniEditorProps {
 
 type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "notes" | "actions";
 
+function kcCode(kc: KnowledgeComponent) {
+  return `${kc.grade}-${kc.unit}-${kc.lesson}`;
+}
+
 export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini }: MiniEditorProps) {
   const selectedMini = minis.find((mini) => mini.id === selectedMiniId) ?? minis[0];
   const [showStepIds, setShowStepIds] = useState(true);
@@ -129,7 +133,10 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
       <div className="main-toolbar">
         <div>
           <p className="eyebrow">Mini lessons</p>
-          <h2>{kc.title}</h2>
+          <div className="kc-heading">
+            <h2>{kc.title}</h2>
+            <span className="id-badge compact">{kcCode(kc)}</span>
+          </div>
         </div>
         <div className="toolbar-actions">
           <button className="secondary-button" onClick={onAddMini} disabled={minis.length >= 4}>

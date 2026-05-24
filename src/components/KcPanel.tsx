@@ -13,6 +13,10 @@ interface KcPanelProps {
   onToggleCollapsed: () => void;
 }
 
+function kcCode(kc: KnowledgeComponent) {
+  return `${kc.grade}-${kc.unit}-${kc.lesson}`;
+}
+
 export function KcPanel({
   kcs,
   selectedKc,
@@ -32,7 +36,7 @@ export function KcPanel({
         </button>
         <div className="collapsed-kc">
           <span className="collapsed-label">KC</span>
-          <span className="collapsed-id">{selectedKc.grade}-{selectedKc.unit}-{selectedKc.lesson}</span>
+          <span className="collapsed-id">{kcCode(selectedKc)}</span>
         </div>
       </aside>
     );
@@ -56,7 +60,7 @@ export function KcPanel({
       <label className="field-label" htmlFor="kc-select">Previous KCs</label>
       <select id="kc-select" className="select" value={selectedKc.id} onChange={(event) => onSelect(event.target.value)}>
         {kcs.map((kc) => (
-          <option key={kc.id} value={kc.id}>{kc.title}</option>
+          <option key={kc.id} value={kc.id}>{kcCode(kc)} · {kc.title}</option>
         ))}
       </select>
 
@@ -84,7 +88,7 @@ export function KcPanel({
           value={selectedKc.title}
           onChange={(event) => onChange({ ...selectedKc, title: event.target.value })}
         />
-        <div className="id-badge">{selectedKc.grade}-{selectedKc.unit}-{selectedKc.lesson}</div>
+        <div className="id-badge">{kcCode(selectedKc)}</div>
       </div>
 
       <div className="grade-grid">

@@ -205,6 +205,13 @@ button:disabled {
   gap: 7px;
 }
 
+.kc-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 h1,
 h2 {
   margin: 0;
@@ -239,6 +246,10 @@ h2 {
   font-weight: 900;
   padding: 7px 10px;
   white-space: nowrap;
+}
+
+.id-badge.compact {
+  padding: 5px 8px;
 }
 
 .save-state.saving {
