@@ -392,7 +392,30 @@ export async function replaceMiniSteps(mini: Mini, steps: MiniStep[], source: st
 export async function logFeedback(entry: Record<string, any>) {
   const db = client();
   if (!db) return;
-  await db.from(TABLES.feedback).insert(entry);
+  const { data } = await db.from(TABLES.feedback).insert(entry).select("*").single();
+  return data;
+}
+
+export async function updateFeedbackLog(id: string, entry: Record<string, any>) {
+  const db = client();
+  if (!db) return;
+  const { data } = await db.from(TABLES.feedback).update(entry).eq("id", id).select("*").single();
+  return data;
+}
+
+export async function findFeedbackByRequestId(miniId: string, requestId: string) {
+  const db = client();
+  if (!db) return null;
+  const { data, error } = await db
+    .from(TABLES.feedback)
+    .select("*")
+    .eq("mini_id", miniId)
+    .filter("payload->>requestId", "eq", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 async function ensureSeedData(db: SupabaseClient<any>) {

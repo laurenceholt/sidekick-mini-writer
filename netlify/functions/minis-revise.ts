@@ -1,9 +1,9 @@
 import type { Config, Context } from "@netlify/functions";
 import { askAnthropicForText } from "./_shared/ai";
-import { getMini, logFeedback, replaceMiniSteps } from "./_shared/db";
+import { findFeedbackByRequestId, getMini, logFeedback, replaceMiniSteps, updateFeedbackLog } from "./_shared/db";
 import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error } from "./_shared/response";
-import type { MiniStep } from "./_shared/types";
+import type { Mini, MiniStep } from "./_shared/types";
 
 type RevisionResult = {
   updateMini: boolean;
@@ -114,7 +114,57 @@ function streamJson<T>(work: Promise<T>) {
   );
 }
 
-async function reviseMini(mini: NonNullable<Awaited<ReturnType<typeof getMini>>>, prompt: string, history: { role: string; content: string }[]) {
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function completedRequestResult(miniId: string, requestId?: string) {
+  if (!requestId) return null;
+  const existing = await findFeedbackByRequestId(miniId, requestId);
+  if (!existing) return null;
+  if (existing.payload?.status !== "completed") return { pending: true as const };
+  const mini = await getMini(miniId);
+  if (!mini) throw new Error("Mini not found");
+  return { pending: false as const, result: { mini, response: existing.agent_response as string } };
+}
+
+async function waitForCompletedRequest(miniId: string, requestId: string) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 85_000) {
+    const existing = await completedRequestResult(miniId, requestId);
+    if (existing && !existing.pending) return existing.result;
+    await sleep(2_000);
+  }
+  throw new Error("Claude is still working. Try Send again in a moment.");
+}
+
+async function reviseMini(
+  mini: NonNullable<Awaited<ReturnType<typeof getMini>>>,
+  prompt: string,
+  history: { role: string; content: string }[],
+  requestId?: string,
+) {
+  if (requestId) {
+    const existing = await completedRequestResult(mini.id, requestId);
+    if (existing) {
+      if (existing.pending) return waitForCompletedRequest(mini.id, requestId);
+      return existing.result;
+    }
+  }
+  const beforeVersionId = mini.currentVersionId;
+  const pendingFeedback = requestId
+    ? await logFeedback({
+        kc_id: mini.kcId,
+        mini_id: mini.id,
+        before_version_id: beforeVersionId,
+        after_version_id: null,
+        event_type: "agent_revision",
+        writer_input: prompt,
+        agent_response: "",
+        payload: { requestId, status: "started", history },
+      })
+    : null;
+
   const responseText = await askAnthropicForText(
     `You are the revision agent for Sidekick mini lessons. Return only valid JSON.
 
@@ -149,9 +199,8 @@ Preserve step ids and math targets unless the request explicitly changes them.`,
     { enableWebSearch: true },
   );
   const result = parseRevisionResponse(responseText, mini.steps);
-  const beforeVersionId = mini.currentVersionId;
-  const updated = result.updateMini ? await replaceMiniSteps(mini, result.steps, "agent", result.summary) : mini;
-  await logFeedback({
+  const updated: Mini = result.updateMini ? await replaceMiniSteps(mini, result.steps, "agent", result.summary) : mini;
+  const feedbackEntry = {
     kc_id: mini.kcId,
     mini_id: mini.id,
     before_version_id: beforeVersionId,
@@ -159,8 +208,13 @@ Preserve step ids and math targets unless the request explicitly changes them.`,
     event_type: "agent_revision",
     writer_input: prompt,
     agent_response: result.response,
-    payload: { updateMini: result.updateMini, history },
-  });
+    payload: { requestId, status: "completed", updateMini: result.updateMini, history },
+  };
+  if (pendingFeedback?.id) {
+    await updateFeedbackLog(pendingFeedback.id, feedbackEntry);
+  } else {
+    await logFeedback(feedbackEntry);
+  }
   return { mini: updated, response: result.response };
 }
 
@@ -169,9 +223,9 @@ export default async (req: Request, context: Context) => {
     if (req.method !== "POST") return error("Method not allowed", 405);
     const mini = await getMini(context.params.id);
     if (!mini) return error("Mini not found", 404);
-    const { prompt, history = [] } = (await req.json()) as { prompt?: string; history?: { role: string; content: string }[] };
+    const { prompt, history = [], requestId } = (await req.json()) as { prompt?: string; history?: { role: string; content: string }[]; requestId?: string };
     if (!prompt) return error("Prompt is required", 400);
-    return streamJson(reviseMini(mini, prompt, history));
+    return streamJson(reviseMini(mini, prompt, history, requestId));
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");
   }

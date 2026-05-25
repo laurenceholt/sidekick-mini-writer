@@ -6,6 +6,10 @@ export interface GenerateMiniResult {
   response: string;
 }
 
+type RequestOptions = RequestInit & {
+  networkRetries?: number;
+};
+
 function formatApiError(path: string, body: string) {
   try {
     const parsed = JSON.parse(body) as { error?: string };
@@ -16,19 +20,41 @@ function formatApiError(path: string, body: string) {
   return body || `Request failed: ${path}`;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-  const body = await res.text();
-  if (!res.ok) throw new Error(formatApiError(path, body));
-  const parsed = body ? JSON.parse(body) : null;
-  if (parsed?.error) throw new Error(parsed.error);
-  return parsed as T;
+function isNetworkFailure(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return message.includes("load failed") || message.includes("failed to fetch") || message.includes("networkerror");
+}
+
+function requestId() {
+  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function request<T>(path: string, init?: RequestOptions): Promise<T> {
+  const { networkRetries = 0, ...fetchInit } = init ?? {};
+  for (let attempt = 0; attempt <= networkRetries; attempt += 1) {
+    try {
+      const res = await fetch(path, {
+        ...fetchInit,
+        headers: {
+          "content-type": "application/json",
+          ...(fetchInit.headers ?? {}),
+        },
+      });
+      const body = await res.text();
+      if (!res.ok) throw new Error(formatApiError(path, body));
+      const parsed = body ? JSON.parse(body) : null;
+      if (parsed?.error) throw new Error(parsed.error);
+      return parsed as T;
+    } catch (error) {
+      if (attempt >= networkRetries || !isNetworkFailure(error)) throw error;
+      await wait(1_500 * (attempt + 1));
+    }
+  }
+  throw new Error(`Request failed: ${path}`);
 }
 
 export async function fetchWorkspace(writerName: string): Promise<WorkspaceData> {
@@ -52,7 +78,9 @@ export const api = {
   reviseMini: (miniId: string, prompt: string, history: AgentMessage[]) =>
     request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/revise`, {
       method: "POST",
+      networkRetries: 1,
       body: JSON.stringify({
+        requestId: requestId(),
         prompt,
         history: history.slice(-10).map(({ role, content }) => ({ role, content })),
       }),
