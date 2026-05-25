@@ -21,6 +21,23 @@ const THINKING_LABELS = [
   "Checking the skill guidance...",
   "Researching sources...",
   "Drafting a response...",
+  "Finding the shape of the lesson...",
+  "Looking for a better hook...",
+  "Comparing possible revisions...",
+  "Checking the grade-level voice...",
+  "Reconsidering...",
+  "Thinking of something profound...",
+  "Making the hints less helpful in the right way...",
+  "Looking for the shortest useful wording...",
+  "Checking the step arc...",
+  "Trying a less boring version...",
+  "Sorting the ideas...",
+  "Looking for a tiny cartoon moment...",
+  "Making sure the math still works...",
+  "Reading the writer notes...",
+  "Turning the crank...",
+  "Looking suspiciously at the equal sign...",
+  "Polishing the response...",
 ];
 
 function addMessage(role: AgentMessage["role"], content: string): AgentMessage {
@@ -64,7 +81,13 @@ export default function App() {
   const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
+  const messageCache = useRef(new Map<string, AgentMessage[]>());
+  const selectedKcIdRef = useRef<string | null>(selectedKcId);
   const initialKcId = useRef(readKcIdFromUrl());
+
+  useEffect(() => {
+    selectedKcIdRef.current = selectedKcId;
+  }, [selectedKcId]);
 
   useEffect(() => {
     let active = true;
@@ -108,10 +131,12 @@ export default function App() {
 
   useEffect(() => {
     if (!agentBusyLabel || !THINKING_LABELS.includes(agentBusyLabel)) return;
-    let index = THINKING_LABELS.indexOf(agentBusyLabel);
     const interval = window.setInterval(() => {
-      index = (index + 1) % THINKING_LABELS.length;
-      setAgentBusyLabel(THINKING_LABELS[index]);
+      setAgentBusyLabel((current) => {
+        if (!current || !THINKING_LABELS.includes(current)) return current;
+        const choices = THINKING_LABELS.filter((label) => label !== current);
+        return choices[Math.floor(Math.random() * choices.length)];
+      });
     }, 4_000);
     return () => window.clearInterval(interval);
   }, [agentBusyLabel]);
@@ -126,6 +151,34 @@ export default function App() {
   useEffect(() => {
     setBrowserKcUrl(writerName, selectedKc?.id ?? null);
   }, [writerName, selectedKc?.id]);
+
+  useEffect(() => {
+    if (!selectedKc?.id) {
+      setMessages([]);
+      return;
+    }
+    let active = true;
+    const cached = messageCache.current.get(selectedKc.id) ?? [];
+    setMessages(cached);
+    api.listAgentMessages(selectedKc.id).then((remoteMessages) => {
+      if (!active) return;
+      messageCache.current.set(selectedKc.id, remoteMessages);
+      setMessages(remoteMessages);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [selectedKc?.id, writerName]);
+
+  const appendKcMessage = (role: AgentMessage["role"], content: string, kcId = selectedKc?.id) => {
+    if (!kcId) return;
+    const message = addMessage(role, content);
+    setMessages((current) => {
+      const next = [...current, message];
+      messageCache.current.set(kcId, next);
+      return selectedKcIdRef.current === kcId ? next : current;
+    });
+  };
 
   const updateWorkspace = (updater: (data: WorkspaceData) => WorkspaceData) => {
     setWorkspace((current) => {
@@ -158,7 +211,7 @@ export default function App() {
       setSelectedKcId(kc.id);
       setSelectedMiniId(null);
     } catch (err) {
-      setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to create that KC: ${errorMessage(err)}`)]);
+      appendKcMessage("agent", `I couldn't ask Claude to create that KC: ${errorMessage(err)}`);
     } finally {
       setAgentBusyLabel(null);
     }
@@ -166,14 +219,15 @@ export default function App() {
 
   const handleGenerateMini = async () => {
     if (!selectedKc) return;
+    const kcId = selectedKc.id;
     setAgentBusyLabel("Asking Claude to generate a mini...");
     try {
       const { mini, response } = await api.generateMini(selectedKc.id);
       updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
       setSelectedMiniId(mini.id);
-      setMessages((current) => [...current, addMessage("agent", response)]);
+      appendKcMessage("agent", response, kcId);
     } catch (err) {
-      setMessages((current) => [...current, addMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`)]);
+      appendKcMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`, kcId);
     } finally {
       setAgentBusyLabel(null);
     }
@@ -220,33 +274,34 @@ export default function App() {
 
   const handleAgentSend = async (prompt: string) => {
     if (!selectedMini) return;
+    const kcId = selectedMini.kcId;
     if (/^\s*process(?:\s+agent)?\s+notes?\s*\.?\s*$/i.test(prompt)) {
-      setMessages((current) => [...current, addMessage("writer", prompt)]);
-      await handleProcessNotes();
+      appendKcMessage("writer", prompt, kcId);
+      await handleProcessNotes(kcId);
       return;
     }
     setAgentBusyLabel("Thinking...");
-    setMessages((current) => [...current, addMessage("writer", prompt)]);
+    appendKcMessage("writer", prompt, kcId);
     try {
       const result = await api.reviseMini(selectedMini.id, prompt, messages);
       replaceMini(result.mini);
-      setMessages((current) => [...current, addMessage("agent", result.response)]);
+      appendKcMessage("agent", result.response, kcId);
     } catch (err) {
-      setMessages((current) => [...current, addMessage("agent", `I couldn't send that to Claude: ${errorMessage(err)}`)]);
+      appendKcMessage("agent", `I couldn't send that to Claude: ${errorMessage(err)}`, kcId);
     } finally {
       setAgentBusyLabel(null);
     }
   };
 
-  const handleProcessNotes = async () => {
+  const handleProcessNotes = async (kcId = selectedMini?.kcId) => {
     if (!selectedMini) return;
     setAgentBusyLabel("Thinking...");
     try {
       const result = await api.processNotes(selectedMini.id);
       replaceMini(result.mini);
-      setMessages((current) => [...current, addMessage("agent", result.response)]);
+      appendKcMessage("agent", result.response, kcId);
     } catch (err) {
-      setMessages((current) => [...current, addMessage("agent", `I couldn't send the notes to Claude: ${errorMessage(err)}`)]);
+      appendKcMessage("agent", `I couldn't send the notes to Claude: ${errorMessage(err)}`, kcId);
     } finally {
       setAgentBusyLabel(null);
     }
@@ -265,7 +320,6 @@ export default function App() {
   const handleWriterSelect = (value: string) => {
     if (value !== "__new__") {
       setWriterName(value);
-      setMessages([]);
       initialKcId.current = null;
       return;
     }
@@ -274,7 +328,6 @@ export default function App() {
     if (!clean) return;
     setWriters((current) => [...new Set([...current, clean])].sort((a, b) => a.localeCompare(b)));
     setWriterName(clean);
-    setMessages([]);
     initialKcId.current = null;
   };
 

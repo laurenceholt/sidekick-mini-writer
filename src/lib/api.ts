@@ -98,6 +98,7 @@ export async function fetchWorkspace(writerName: string): Promise<WorkspaceData>
 
 export const api = {
   listWriters: () => request<string[]>("/api/writers"),
+  listAgentMessages: (kcId: string) => request<AgentMessage[]>(`/api/agent-messages?kcId=${encodeURIComponent(kcId)}`),
   createKc: (title: string, writerName: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ title, writerName }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
   generateMini: (kcId: string) => request<GenerateMiniResult>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),

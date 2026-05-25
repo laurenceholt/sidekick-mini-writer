@@ -20,21 +20,38 @@ export function MarkdownText({ text }: { text: string }) {
   const lines = text.split(/\r?\n/);
   const nodes: ReactNode[] = [];
   let bullets: ReactNode[] = [];
+  let numbers: ReactNode[] = [];
 
   const flushBullets = () => {
     if (!bullets.length) return;
     nodes.push(<ul key={`list-${nodes.length}`}>{bullets}</ul>);
     bullets = [];
   };
+  const flushNumbers = () => {
+    if (!numbers.length) return;
+    nodes.push(<ol key={`number-list-${nodes.length}`}>{numbers}</ol>);
+    numbers = [];
+  };
+  const flushLists = () => {
+    flushBullets();
+    flushNumbers();
+  };
 
   lines.forEach((line, index) => {
     const bullet = line.match(/^\s*[-*]\s+(.+)$/);
     if (bullet) {
+      flushNumbers();
       bullets.push(<li key={index}>{renderInline(bullet[1])}</li>);
       return;
     }
+    const numbered = line.match(/^\s*\d+\.\s+(.+)$/);
+    if (numbered) {
+      flushBullets();
+      numbers.push(<li key={index}>{renderInline(numbered[1])}</li>);
+      return;
+    }
 
-    flushBullets();
+    flushLists();
     if (!line.trim()) {
       nodes.push(<br key={index} />);
       return;
@@ -42,6 +59,6 @@ export function MarkdownText({ text }: { text: string }) {
     nodes.push(<p key={index}>{renderInline(line)}</p>);
   });
 
-  flushBullets();
+  flushLists();
   return <div className="markdown-text">{nodes}</div>;
 }

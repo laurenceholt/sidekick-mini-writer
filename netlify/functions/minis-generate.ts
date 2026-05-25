@@ -39,14 +39,15 @@ Return JSON:
       "interaction": string,
       "targetResponse": string,
       "hint": string,
+      "writerNotes": "",
       "agentNotes": ""
     }
   ]
 }
 
-Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers.
+Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers. Set writerNotes and agentNotes to empty strings on every generated step.
 
-Write 3-5 short rationale bullets explaining the hook, sequencing, interaction choices, and how the mini follows the skill.`,
+Write 3-5 short rationale bullets explaining the hook, sequencing, interaction choices, and how the mini follows the skill. Each rationale bullet should be a complete sentence, not shorthand.`,
       { enableWebSearch: true },
     );
     const mini = await createMini(kc, miniIndex, generated.title, generated.steps, "generate", "Generated from KC.");

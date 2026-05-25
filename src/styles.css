@@ -933,7 +933,7 @@ h2 {
 
 .deploy-marker {
   position: fixed;
-  right: 10px;
+  left: 10px;
   bottom: 8px;
   z-index: 20;
   border-radius: 999px;

@@ -29,6 +29,7 @@ export interface MiniStep {
   interaction: string;
   targetResponse: string;
   hint: string;
+  writerNotes?: string;
   agentNotes: string;
 }
 
@@ -52,4 +53,11 @@ export interface Mini {
   versions: MiniVersion[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AgentMessage {
+  id: string;
+  role: "writer" | "agent";
+  content: string;
+  createdAt: string;
 }

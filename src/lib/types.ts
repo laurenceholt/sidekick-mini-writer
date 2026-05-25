@@ -29,6 +29,7 @@ export interface MiniStep {
   interaction: string;
   targetResponse: string;
   hint: string;
+  writerNotes?: string;
   agentNotes: string;
 }
 

@@ -16,7 +16,7 @@ interface MiniEditorProps {
   onRevert: (versionId: string) => void;
 }
 
-type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "notes" | "actions";
+type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "writerNotes" | "agentNotes" | "actions";
 
 function kcCode(kc: KnowledgeComponent) {
   return `${kc.grade}-${kc.unit}-${kc.lesson}`;
@@ -27,14 +27,15 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
   const [showStepIds, setShowStepIds] = useState(true);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingAgentNoteId, setEditingAgentNoteId] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>({
     drag: 34,
     step: 92,
     instruction: 330,
     interaction: 430,
     hint: 210,
-    notes: 210,
+    writerNotes: 190,
+    agentNotes: 190,
     actions: 42,
   });
 
@@ -70,6 +71,7 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
       interaction: "Describe the graphic, response control, and target.",
       targetResponse: "",
       hint: "",
+      writerNotes: "",
       agentNotes: "",
     };
     onChangeMini({ ...selectedMini, steps: [...selectedMini.steps, nextStep] }, true);
@@ -98,7 +100,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
     columnWidths.instruction +
     columnWidths.interaction +
     columnWidths.hint +
-    columnWidths.notes +
+    columnWidths.writerNotes +
+    columnWidths.agentNotes +
     columnWidths.actions;
 
   const startResize = (key: ColumnKey, event: ReactMouseEvent) => {
@@ -111,7 +114,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
       instruction: 190,
       interaction: 260,
       hint: 150,
-      notes: 150,
+      writerNotes: 150,
+      agentNotes: 150,
       actions: 42,
     };
 
@@ -214,7 +218,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
             <col style={{ width: columnWidths.instruction }} />
             <col style={{ width: columnWidths.interaction }} />
             <col style={{ width: columnWidths.hint }} />
-            <col style={{ width: columnWidths.notes }} />
+            <col style={{ width: columnWidths.writerNotes }} />
+            <col style={{ width: columnWidths.agentNotes }} />
             <col style={{ width: columnWidths.actions }} />
           </colgroup>
           <thead>
@@ -250,8 +255,12 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                 <ResizeHandle column="hint" />
               </th>
               <th className="resizable-head">
+                Writer notes
+                <ResizeHandle column="writerNotes" />
+              </th>
+              <th className="resizable-head">
                 Agent notes
-                <ResizeHandle column="notes" />
+                <ResizeHandle column="agentNotes" />
               </th>
               <th aria-label="Actions" />
             </tr>
@@ -311,16 +320,23 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   <textarea value={step.hint} onChange={(event) => updateStep(step.id, { hint: event.target.value })} />
                 </td>
                 <td>
-                  {step.agentNotes.trim() && editingNoteId !== step.id ? (
-                    <button className="markdown-note-preview" type="button" onClick={() => setEditingNoteId(step.id)}>
+                  <textarea
+                    value={step.writerNotes ?? ""}
+                    placeholder="Request a change for this step"
+                    onChange={(event) => updateStep(step.id, { writerNotes: event.target.value })}
+                  />
+                </td>
+                <td>
+                  {step.agentNotes.trim() && editingAgentNoteId !== step.id ? (
+                    <button className="markdown-note-preview" type="button" onClick={() => setEditingAgentNoteId(step.id)}>
                       <MarkdownText text={step.agentNotes} />
                     </button>
                   ) : (
                     <textarea
                       value={step.agentNotes}
-                      placeholder="Ask the agent to revise this step"
-                      autoFocus={editingNoteId === step.id}
-                      onBlur={() => setEditingNoteId(null)}
+                      placeholder="Agent status or rationale"
+                      autoFocus={editingAgentNoteId === step.id}
+                      onBlur={() => setEditingAgentNoteId(null)}
                       onChange={(event) => updateStep(step.id, { agentNotes: event.target.value })}
                     />
                   )}
@@ -334,7 +350,7 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
             ))}
             {draggedStepId && dragTargetIndex === selectedMini.steps.length && (
               <tr className="drop-after">
-                <td colSpan={showStepIds ? 7 : 6} />
+                <td colSpan={showStepIds ? 8 : 7} />
               </tr>
             )}
           </tbody>

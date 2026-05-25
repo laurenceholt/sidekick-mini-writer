@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEnv } from "./env";
 import { seedKc, seedMini } from "./seed";
-import type { KnowledgeComponent, Mini, MiniStep, MiniVersion } from "./types";
+import type { AgentMessage, KnowledgeComponent, Mini, MiniStep, MiniVersion } from "./types";
 
 const TABLES = {
   writers: "mini_writer_writers",
@@ -416,6 +416,34 @@ export async function findFeedbackByRequestId(miniId: string, requestId: string)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+function feedbackToMessages(rows: Record<string, any>[]): AgentMessage[] {
+  return rows.flatMap((row) => {
+    const createdAt = row.created_at ?? new Date().toISOString();
+    const messages: AgentMessage[] = [];
+    if (row.writer_input && ["agent_revision", "process_agent_notes"].includes(row.event_type)) {
+      messages.push({ id: `${row.id}-writer`, role: "writer", content: row.writer_input, createdAt });
+    }
+    if (row.agent_response) {
+      messages.push({ id: `${row.id}-agent`, role: "agent", content: row.agent_response, createdAt });
+    }
+    return messages;
+  });
+}
+
+export async function listAgentMessages(kcId: string) {
+  const db = client();
+  if (!db) return [];
+  const { data, error } = await db
+    .from(TABLES.feedback)
+    .select("*")
+    .eq("kc_id", kcId)
+    .in("event_type", ["agent_revision", "generate_mini", "process_agent_notes"])
+    .order("created_at", { ascending: true })
+    .limit(200);
+  if (error) throw error;
+  return feedbackToMessages(data ?? []);
 }
 
 async function ensureSeedData(db: SupabaseClient<any>) {

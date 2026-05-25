@@ -3,12 +3,13 @@ import { applyAgentNotes } from "./localAgent";
 import { seedSteps } from "./seed";
 
 describe("agent note processing", () => {
-  it("applies notes and clears them", () => {
+  it("applies writer notes, clears them, and marks agent notes done", () => {
     const result = applyAgentNotes([
-      { ...seedSteps[0], agentNotes: "make shorter" },
-      { ...seedSteps[1], agentNotes: "improve hint" },
+      { ...seedSteps[0], writerNotes: "make shorter" },
+      { ...seedSteps[1], writerNotes: "improve hint" },
     ]);
-    expect(result.steps[0].agentNotes).toBe("");
+    expect(result.steps[0].writerNotes).toBe("");
+    expect(result.steps[0].agentNotes).toContain("**Done:**");
     expect(result.steps[1].hint).toContain("Compare both sides");
     expect(result.response).toContain(seedSteps[0].id);
   });

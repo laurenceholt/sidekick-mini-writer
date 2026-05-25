@@ -40,6 +40,7 @@ export function generateMiniForKc(kc: KnowledgeComponent, miniIndex: number): Mi
     interaction,
     targetResponse,
     hint,
+    writerNotes: "",
     agentNotes: "",
   }));
   const steps = renumberSteps(kc, miniIndex, baseSteps as MiniStep[]);
@@ -92,16 +93,17 @@ export function reviseStepsFromPrompt(steps: MiniStep[], prompt: string) {
 export function applyAgentNotes(steps: MiniStep[]) {
   const responses: string[] = [];
   const nextSteps = steps.map((step) => {
-    if (!step.agentNotes.trim()) return step;
-    const note = step.agentNotes.toLowerCase();
+    if (!step.writerNotes?.trim()) return step;
+    const note = step.writerNotes.toLowerCase();
     responses.push(`${step.id}: Done`);
+    const agentNotes = `${step.agentNotes ? `${step.agentNotes}\n` : ""}**Done:** ${step.writerNotes.trim()}`;
     if (note.includes("short")) {
-      return { ...step, instruction: step.instruction.replace("Look at ", "").replace("Evaluate both sides of ", "Evaluate "), agentNotes: "" };
+      return { ...step, instruction: step.instruction.replace("Look at ", "").replace("Evaluate both sides of ", "Evaluate "), writerNotes: "", agentNotes };
     }
     if (note.includes("hint")) {
-      return { ...step, hint: `${step.hint} Compare both sides before answering.`, agentNotes: "" };
+      return { ...step, hint: `${step.hint} Compare both sides before answering.`, writerNotes: "", agentNotes };
     }
-    return { ...step, agentNotes: "" };
+    return { ...step, writerNotes: "", agentNotes };
   });
   return {
     steps: nextSteps,
