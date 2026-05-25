@@ -493,7 +493,42 @@ function cleanLegacyAgentResponse(content: string) {
       // Try the next JSON-looking object.
     }
   }
+  const extracted = extractLegacyResponseValue(content);
+  if (extracted) return extracted;
+  const proseStart = content.indexOf("Here's what I found");
+  if (proseStart >= 0) return content.slice(proseStart).trim();
   return content;
+}
+
+function extractLegacyResponseValue(content: string) {
+  const keyIndex = content.lastIndexOf('"response"');
+  if (keyIndex < 0) return null;
+  const colonIndex = content.indexOf(":", keyIndex);
+  const startQuote = content.indexOf('"', colonIndex + 1);
+  if (colonIndex < 0 || startQuote < 0) return null;
+
+  let escaped = false;
+  for (let index = startQuote + 1; index < content.length; index += 1) {
+    const char = content[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char !== '"') continue;
+    if (!/^\s*,\s*"summary"/.test(content.slice(index + 1))) continue;
+
+    const raw = content.slice(startQuote + 1, index);
+    try {
+      return JSON.parse(`"${raw}"`) as string;
+    } catch {
+      return raw.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\").trim();
+    }
+  }
+  return null;
 }
 
 function feedbackToMessages(rows: Record<string, any>[]): AgentMessage[] {
