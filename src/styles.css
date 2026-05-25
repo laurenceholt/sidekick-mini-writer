@@ -86,20 +86,25 @@ button:disabled {
 .writer-switcher {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 10px;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--minis-mustard) 35%, var(--border));
+  border-radius: 12px;
+  background: #fffefa;
+  box-shadow: 0 10px 24px -20px rgb(72 61 33 / 55%);
+  color: var(--minis-ink);
+  font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
+  padding: 6px 8px 6px 12px;
   text-transform: uppercase;
 }
 
 .writer-switcher select {
   min-width: 150px;
-  min-height: 34px;
-  border: 1px solid var(--border);
+  min-height: 32px;
+  border: 1px solid color-mix(in srgb, var(--minis-green) 30%, var(--border));
   border-radius: 8px;
-  background: #fffefa;
+  background: #ffffff;
   color: var(--minis-ink);
   font-size: 13px;
   font-weight: 800;

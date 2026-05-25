@@ -353,7 +353,7 @@ export default function App() {
           <h1>mini-writer</h1>
         </div>
         <label className="writer-switcher">
-          <span>Writer</span>
+          <span>Current writer</span>
           <select value={writerName} onChange={(event) => handleWriterSelect(event.target.value)}>
             {writers.map((writer) => (
               <option key={writer} value={writer}>{writer}</option>

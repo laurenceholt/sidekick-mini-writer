@@ -26,7 +26,7 @@ const STATUS_OPTIONS: { value: MiniStatus; label: string }[] = [
 ];
 
 function kcCode(kc: KnowledgeComponent) {
-  return `${kc.grade}-${kc.unit}-${kc.lesson}`;
+  return `${kc.grade}-${kc.topic}-${kc.kcNumber}`;
 }
 
 export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini, onRevert }: MiniEditorProps) {

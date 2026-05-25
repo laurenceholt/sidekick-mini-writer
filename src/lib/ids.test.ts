@@ -3,11 +3,11 @@ import { makeStepId, renumberSteps, slugify } from "./ids";
 
 describe("step ids", () => {
   it("formats Grade-Unit-Lesson-Mini-Step ids", () => {
-    expect(makeStepId({ grade: 6, unit: 6, lesson: 1 }, 1, 1)).toBe("6-6-1-1-1");
+    expect(makeStepId({ grade: 6, topic: 6, kcNumber: 1 }, 1, 1)).toBe("6-6-1-1-1");
   });
 
   it("renumbers steps after structural edits", () => {
-    const steps = renumberSteps({ grade: 6, unit: 8, lesson: 9 }, 1, [
+    const steps = renumberSteps({ grade: 6, topic: 8, kcNumber: 9 }, 1, [
       { id: "old", instruction: "", interaction: "", targetResponse: "", hint: "", agentNotes: "" },
       { id: "old2", instruction: "", interaction: "", targetResponse: "", hint: "", agentNotes: "" },
     ]);

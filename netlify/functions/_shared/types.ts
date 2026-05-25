@@ -13,8 +13,8 @@ export interface KnowledgeComponent {
   title: string;
   slug: string;
   grade: number;
-  unit: number;
-  lesson: number;
+  topic: number;
+  kcNumber: number;
   condition: string;
   response: string;
   workedExampleMd: string;

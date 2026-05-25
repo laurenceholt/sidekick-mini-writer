@@ -8,12 +8,12 @@ export function slugify(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-export function makeStepId(kc: Pick<KnowledgeComponent, "grade" | "unit" | "lesson">, miniIndex: number, stepIndex: number) {
-  return `${kc.grade}-${kc.unit}-${kc.lesson}-${miniIndex}-${stepIndex}`;
+export function makeStepId(kc: Pick<KnowledgeComponent, "grade" | "topic" | "kcNumber">, miniIndex: number, stepIndex: number) {
+  return `${kc.grade}-${kc.topic}-${kc.kcNumber}-${miniIndex}-${stepIndex}`;
 }
 
 export function renumberSteps(
-  kc: Pick<KnowledgeComponent, "grade" | "unit" | "lesson">,
+  kc: Pick<KnowledgeComponent, "grade" | "topic" | "kcNumber">,
   miniIndex: number,
   steps: MiniStep[],
 ) {

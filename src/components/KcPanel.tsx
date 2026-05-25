@@ -14,7 +14,7 @@ interface KcPanelProps {
 }
 
 function kcCode(kc: KnowledgeComponent) {
-  return `${kc.grade}-${kc.unit}-${kc.lesson}`;
+  return `${kc.grade}-${kc.topic}-${kc.kcNumber}`;
 }
 
 export function KcPanel({
@@ -97,9 +97,13 @@ export function KcPanel({
       </div>
 
       <div className="grade-grid">
-        {(["grade", "unit", "lesson"] as const).map((field) => (
+        {([
+          ["grade", "Grade"],
+          ["topic", "Topic"],
+          ["kcNumber", "KC #"],
+        ] as const).map(([field, label]) => (
           <label key={field} className="mini-field">
-            <span>{field}</span>
+            <span>{label}</span>
             <input
               type="number"
               min={1}

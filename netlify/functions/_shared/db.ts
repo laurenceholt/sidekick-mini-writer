@@ -39,6 +39,11 @@ function isMissingStatusSchema(error: any) {
   return message.includes("status") || message.includes("42703") || message.includes("PGRST204");
 }
 
+function isMissingTopicSchema(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return message.includes("topic") || message.includes("kc_number") || message.includes("PGRST204") || message.includes("42703");
+}
+
 function client() {
   const url = getEnv("SUPABASE_URL");
   const key = getEnv("SUPABASE_SECRET_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -53,8 +58,8 @@ export function toKc(row: Record<string, any>, writerName = DEFAULT_WRITER): Kno
     title: row.title,
     slug: row.slug,
     grade: row.grade,
-    unit: row.unit,
-    lesson: row.lesson,
+    topic: row.topic ?? row.unit,
+    kcNumber: row.kc_number ?? row.kcNumber ?? row.lesson,
     condition: row.condition,
     response: row.response,
     workedExampleMd: row.worked_example_md,
@@ -70,14 +75,37 @@ function kcRow(kc: Partial<KnowledgeComponent>) {
     title: kc.title,
     slug: kc.slug,
     grade: kc.grade,
-    unit: kc.unit,
-    lesson: kc.lesson,
+    topic: kc.topic,
+    kc_number: kc.kcNumber,
     condition: kc.condition,
     response: kc.response,
     worked_example_md: kc.workedExampleMd,
     standards: kc.standards,
     notes_md: stripLegacyWriterMarker(kc.notesMd),
   };
+}
+
+function legacyKcRow(kc: Partial<KnowledgeComponent>) {
+  const row = kcRow(kc) as Record<string, any>;
+  row.unit = row.topic;
+  row.lesson = row.kc_number;
+  delete row.topic;
+  delete row.kc_number;
+  return row;
+}
+
+function normalizeIncomingKcRow(data: Record<string, any>) {
+  const row = { ...data };
+  row.topic = row.topic ?? row.unit ?? 6;
+  row.kc_number = row.kc_number ?? row.kcNumber ?? row.lesson ?? 1;
+  row.notes_md = stripLegacyWriterMarker(row.notes_md ?? row.notesMd);
+  row.worked_example_md = row.worked_example_md ?? row.workedExampleMd;
+  delete row.unit;
+  delete row.lesson;
+  delete row.kcNumber;
+  delete row.notesMd;
+  delete row.workedExampleMd;
+  return row;
 }
 
 export async function listKcs(writerName = DEFAULT_WRITER) {
@@ -191,7 +219,7 @@ export async function insertKc(data: Record<string, any>, writerName = DEFAULT_W
   const db = client();
   const writer = cleanWriterName(writerName);
   const writerRow = await ensureWriter(writer);
-  const row: Record<string, any> = { ...data, writer_id: writerRow?.id, notes_md: stripLegacyWriterMarker(data.notes_md), writerName: undefined };
+  const row: Record<string, any> = { ...normalizeIncomingKcRow(data), writer_id: writerRow?.id, writerName: undefined };
   if (!db) return { ...seedKc, ...toKcLike(row), writerName: writer, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   const baseSlug = slugify(row.slug ?? row.title ?? "kc");
   const { data: existingSlug, error: slugError } = await db.from(TABLES.kcs).select("id").eq("slug", baseSlug).maybeSingle();
@@ -199,8 +227,16 @@ export async function insertKc(data: Record<string, any>, writerName = DEFAULT_W
   const insertRow: Record<string, any> = { ...row, slug: existingSlug ? `${baseSlug}_${crypto.randomUUID().slice(0, 8)}` : baseSlug };
   delete insertRow.writerName;
   if (!insertRow.writer_id) delete insertRow.writer_id;
-  const { data: inserted, error } = await db.from(TABLES.kcs).insert(insertRow).select("*").single();
-  if (error) throw error;
+  let { data: inserted, error } = await db.from(TABLES.kcs).insert(insertRow).select("*").single();
+  if (error) {
+    if (!isMissingTopicSchema(error)) throw error;
+    const legacyRow: Record<string, any> = { ...insertRow, unit: insertRow.topic, lesson: insertRow.kc_number };
+    delete legacyRow.topic;
+    delete legacyRow.kc_number;
+    const fallback = await db.from(TABLES.kcs).insert(legacyRow).select("*").single();
+    if (fallback.error) throw fallback.error;
+    inserted = fallback.data;
+  }
   return toKc(inserted, writer);
 }
 
@@ -210,8 +246,8 @@ function toKcLike(row: Record<string, any>) {
     title: row.title,
     slug: row.slug,
     grade: row.grade,
-    unit: row.unit,
-    lesson: row.lesson,
+    topic: row.topic ?? row.unit,
+    kcNumber: row.kc_number ?? row.kcNumber ?? row.lesson,
     condition: row.condition,
     response: row.response,
     workedExampleMd: row.worked_example_md,
@@ -223,8 +259,13 @@ function toKcLike(row: Record<string, any>) {
 export async function updateKc(kc: KnowledgeComponent) {
   const db = client();
   if (!db) return kc;
-  const { data, error } = await db.from(TABLES.kcs).update(kcRow(kc)).eq("id", kc.id).select("*").single();
-  if (error) throw error;
+  let { data, error } = await db.from(TABLES.kcs).update(kcRow(kc)).eq("id", kc.id).select("*").single();
+  if (error) {
+    if (!isMissingTopicSchema(error)) throw error;
+    const fallback = await db.from(TABLES.kcs).update(legacyKcRow(kc)).eq("id", kc.id).select("*").single();
+    if (fallback.error) throw fallback.error;
+    data = fallback.data;
+  }
   return toKc(data);
 }
 
@@ -571,16 +612,24 @@ async function ensureSeedData(db: SupabaseClient<any>) {
     title: seedKc.title,
     slug: seedKc.slug,
     grade: seedKc.grade,
-    unit: seedKc.unit,
-    lesson: seedKc.lesson,
+    topic: seedKc.topic,
+    kc_number: seedKc.kcNumber,
     condition: seedKc.condition,
     response: seedKc.response,
     worked_example_md: seedKc.workedExampleMd,
     standards: seedKc.standards,
     notes_md: stripLegacyWriterMarker(seedKc.notesMd),
   };
-  const { data: inserted, error: insertError } = await db.from(TABLES.kcs).insert(seedRow).select("*").single();
-  if (insertError) throw insertError;
+  let { data: inserted, error: insertError } = await db.from(TABLES.kcs).insert(seedRow).select("*").single();
+  if (insertError) {
+    if (!isMissingTopicSchema(insertError)) throw insertError;
+    const legacySeedRow: Record<string, any> = { ...seedRow, unit: seedRow.topic, lesson: seedRow.kc_number };
+    delete legacySeedRow.topic;
+    delete legacySeedRow.kc_number;
+    const fallback = await db.from(TABLES.kcs).insert(legacySeedRow).select("*").single();
+    if (fallback.error) throw fallback.error;
+    inserted = fallback.data;
+  }
 
   let { data: mini, error: miniError } = await db
     .from(TABLES.minis)

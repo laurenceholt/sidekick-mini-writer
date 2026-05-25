@@ -9,8 +9,8 @@ export const seedKc: KnowledgeComponent = {
   title: "Interpret Truth of Equation",
   slug: "interpret_true_false_equation",
   grade: 6,
-  unit: 6,
-  lesson: 1,
+  topic: 6,
+  kcNumber: 1,
   condition: "Given an equation with numerical expressions on both sides.",
   response: "Determine whether the two sides are equal (true) or not equal (false).",
   workedExampleMd:

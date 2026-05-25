@@ -7,8 +7,8 @@ export function fallbackKc(title: string) {
     title,
     slug: slugify(title),
     grade: 6,
-    unit: 6,
-    lesson: 1,
+    topic: 6,
+    kcNumber: 1,
     condition: "Given an equation with numerical expressions or variables on both sides.",
     response: "Determine whether the equation is true or false after evaluating or substituting.",
     worked_example_md:
