@@ -1,4 +1,5 @@
 export type AgentSource = "seed" | "generate" | "manual" | "agent" | "notes" | "revert";
+export type MiniStatus = "not_started" | "writing" | "ready_for_review" | "done";
 
 export interface Standard {
   code: string;
@@ -48,6 +49,7 @@ export interface Mini {
   kcId: string;
   miniIndex: number;
   title: string;
+  status: MiniStatus;
   currentVersionId: string;
   steps: MiniStep[];
   versions: MiniVersion[];

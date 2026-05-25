@@ -34,6 +34,11 @@ function isMissingWriterSchema(error: any) {
   return message.includes(TABLES.writers) || message.includes("writer_id") || message.includes("PGRST200") || message.includes("42P01") || message.includes("42703");
 }
 
+function isMissingStatusSchema(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return message.includes("status") || message.includes("42703") || message.includes("PGRST204");
+}
+
 function client() {
   const url = getEnv("SUPABASE_URL");
   const key = getEnv("SUPABASE_SECRET_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -242,6 +247,7 @@ function toMini(row: Record<string, any>, versions: MiniVersion[]): Mini {
     kcId: row.kc_id,
     miniIndex: row.mini_index,
     title: row.title,
+    status: row.status ?? "writing",
     currentVersionId: row.current_version_id,
     steps: current?.steps ?? [],
     versions,
@@ -287,6 +293,7 @@ export async function createMini(kc: KnowledgeComponent, miniIndex: number, titl
       kcId: kc.id,
       miniIndex,
       title,
+      status: "writing",
       currentVersionId: versionId,
       steps,
       versions: [{ id: versionId, miniId, versionNumber: 1, source: source as any, summary, steps, createdAt }],
@@ -296,10 +303,23 @@ export async function createMini(kc: KnowledgeComponent, miniIndex: number, titl
   }
   const { data: mini, error } = await db
     .from(TABLES.minis)
-    .insert({ kc_id: kc.id, mini_index: miniIndex, title })
+    .insert({ kc_id: kc.id, mini_index: miniIndex, title, status: "writing" })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) {
+    if (!isMissingStatusSchema(error)) throw error;
+    const fallback = await db.from(TABLES.minis).insert({ kc_id: kc.id, mini_index: miniIndex, title }).select("*").single();
+    if (fallback.error) throw fallback.error;
+    const version = await createVersion(fallback.data.id, steps, source, summary);
+    const { data: updated, error: updateError } = await db
+      .from(TABLES.minis)
+      .update({ current_version_id: version.id })
+      .eq("id", fallback.data.id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+    return toMini(updated, [version]);
+  }
   const version = await createVersion(mini.id, steps, source, summary);
   const { data: updated, error: updateError } = await db
     .from(TABLES.minis)
@@ -314,12 +334,20 @@ export async function createMini(kc: KnowledgeComponent, miniIndex: number, titl
 export async function updateMini(mini: Mini) {
   const db = client();
   if (!db) return mini;
-  const { data, error } = await db.from(TABLES.minis).update({ title: mini.title }).eq("id", mini.id).select("*").single();
-  if (error) throw error;
-  const version = await saveManualVersion(mini.id, mini.steps);
-  await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id);
+  const current = await getMini(mini.id);
+  const stepsChanged = JSON.stringify(current?.steps ?? []) !== JSON.stringify(mini.steps ?? []);
+  const row = { title: mini.title, status: mini.status ?? (stepsChanged ? "writing" : current?.status ?? "writing") };
+  let { data, error } = await db.from(TABLES.minis).update(row).eq("id", mini.id).select("*").single();
+  if (error) {
+    if (!isMissingStatusSchema(error)) throw error;
+    const fallback = await db.from(TABLES.minis).update({ title: mini.title }).eq("id", mini.id).select("*").single();
+    if (fallback.error) throw fallback.error;
+    data = fallback.data;
+  }
+  const version = stepsChanged ? await saveManualVersion(mini.id, mini.steps) : null;
+  if (version) await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id);
   const versions = await listVersionsForMini(mini.id);
-  return toMini({ ...data, current_version_id: version.id }, versions);
+  return toMini({ ...data, status: row.status, current_version_id: version?.id ?? data.current_version_id }, versions);
 }
 
 export async function createVersion(miniId: string, steps: MiniStep[], source: string, summary: string) {
@@ -381,11 +409,16 @@ export async function replaceMiniSteps(mini: Mini, steps: MiniStep[], source: st
   const db = client();
   if (!db) {
     const version = await createVersion(mini.id, steps, source, summary);
-    return { ...mini, steps, currentVersionId: version.id, versions: [...mini.versions, version], updatedAt: version.createdAt };
+    return { ...mini, status: "writing", steps, currentVersionId: version.id, versions: [...mini.versions, version], updatedAt: version.createdAt };
   }
   const version = await createVersion(mini.id, steps, source, summary);
-  const { data, error } = await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id).select("*").single();
-  if (error) throw error;
+  let { data, error } = await db.from(TABLES.minis).update({ current_version_id: version.id, status: "writing" }).eq("id", mini.id).select("*").single();
+  if (error) {
+    if (!isMissingStatusSchema(error)) throw error;
+    const fallback = await db.from(TABLES.minis).update({ current_version_id: version.id }).eq("id", mini.id).select("*").single();
+    if (fallback.error) throw fallback.error;
+    data = { ...fallback.data, status: "writing" };
+  }
   return toMini(data, [...mini.versions, version]);
 }
 
@@ -418,6 +451,51 @@ export async function findFeedbackByRequestId(miniId: string, requestId: string)
   return data;
 }
 
+function extractJsonObjects(text: string) {
+  const objects: string[] = [];
+  for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < text.length; index += 1) {
+      const char = text[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = inString;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (char === "{") depth += 1;
+      if (char === "}") depth -= 1;
+      if (depth === 0) {
+        objects.push(text.slice(start, index + 1));
+        break;
+      }
+    }
+  }
+  return objects.reverse();
+}
+
+function cleanLegacyAgentResponse(content: string) {
+  if (!content.includes('"updateMini"') || !content.includes('"response"')) return content;
+  for (const candidate of extractJsonObjects(content)) {
+    try {
+      const parsed = JSON.parse(candidate) as { response?: unknown };
+      if (typeof parsed.response === "string" && parsed.response.trim()) return parsed.response;
+    } catch {
+      // Try the next JSON-looking object.
+    }
+  }
+  return content;
+}
+
 function feedbackToMessages(rows: Record<string, any>[]): AgentMessage[] {
   return rows.flatMap((row) => {
     const createdAt = row.created_at ?? new Date().toISOString();
@@ -426,7 +504,7 @@ function feedbackToMessages(rows: Record<string, any>[]): AgentMessage[] {
       messages.push({ id: `${row.id}-writer`, role: "writer", content: row.writer_input, createdAt });
     }
     if (row.agent_response) {
-      messages.push({ id: `${row.id}-agent`, role: "agent", content: row.agent_response, createdAt });
+      messages.push({ id: `${row.id}-agent`, role: "agent", content: cleanLegacyAgentResponse(row.agent_response), createdAt });
     }
     return messages;
   });
@@ -469,12 +547,21 @@ async function ensureSeedData(db: SupabaseClient<any>) {
   const { data: inserted, error: insertError } = await db.from(TABLES.kcs).insert(seedRow).select("*").single();
   if (insertError) throw insertError;
 
-  const { data: mini, error: miniError } = await db
+  let { data: mini, error: miniError } = await db
     .from(TABLES.minis)
-    .insert({ id: seedMini.id, kc_id: seedKc.id, mini_index: seedMini.miniIndex, title: seedMini.title })
+    .insert({ id: seedMini.id, kc_id: seedKc.id, mini_index: seedMini.miniIndex, title: seedMini.title, status: "writing" })
     .select("*")
     .single();
-  if (miniError) throw miniError;
+  if (miniError) {
+    if (!isMissingStatusSchema(miniError)) throw miniError;
+    const fallback = await db
+      .from(TABLES.minis)
+      .insert({ id: seedMini.id, kc_id: seedKc.id, mini_index: seedMini.miniIndex, title: seedMini.title })
+      .select("*")
+      .single();
+    if (fallback.error) throw fallback.error;
+    mini = fallback.data;
+  }
 
   const version = seedMini.versions[0];
   const { data: insertedVersion, error: versionError } = await db
@@ -491,6 +578,11 @@ async function ensureSeedData(db: SupabaseClient<any>) {
     .single();
   if (versionError) throw versionError;
 
-  await db.from(TABLES.minis).update({ current_version_id: insertedVersion.id }).eq("id", mini.id);
+  const seedMiniUpdate = await db.from(TABLES.minis).update({ current_version_id: insertedVersion.id, status: "writing" }).eq("id", mini.id);
+  if (seedMiniUpdate.error && isMissingStatusSchema(seedMiniUpdate.error)) {
+    await db.from(TABLES.minis).update({ current_version_id: insertedVersion.id }).eq("id", mini.id);
+  } else if (seedMiniUpdate.error) {
+    throw seedMiniUpdate.error;
+  }
   return toKc(inserted);
 }

@@ -57,11 +57,33 @@ create table if not exists public.mini_writer_minis (
   kc_id uuid not null references public.mini_writer_kcs(id) on delete cascade,
   mini_index integer not null check (mini_index between 1 and 4),
   title text not null,
+  status text not null default 'not_started' check (status in ('not_started', 'writing', 'ready_for_review', 'done')),
   current_version_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (kc_id, mini_index)
 );
+
+alter table public.mini_writer_minis
+  add column if not exists status text not null default 'not_started';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'mini_writer_minis_status_check'
+  ) then
+    alter table public.mini_writer_minis
+      add constraint mini_writer_minis_status_check
+      check (status in ('not_started', 'writing', 'ready_for_review', 'done'));
+  end if;
+end $$;
+
+update public.mini_writer_minis
+set status = 'writing'
+where current_version_id is not null
+  and status = 'not_started';
 
 create table if not exists public.mini_writer_mini_versions (
   id uuid primary key default gen_random_uuid(),

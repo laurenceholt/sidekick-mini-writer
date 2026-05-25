@@ -62,9 +62,14 @@ function readKcIdFromUrl() {
   return match?.[1] ?? null;
 }
 
-function setBrowserKcUrl(writerName: string, kcId: string | null) {
+function readMiniIdFromUrl() {
+  return new URLSearchParams(window.location.search).get("mini");
+}
+
+function setBrowserKcUrl(writerName: string, kcId: string | null, miniId: string | null) {
   const params = new URLSearchParams();
   params.set("writer", writerName);
+  if (miniId) params.set("mini", miniId);
   const path = kcId ? `/kc/${kcId}` : "/";
   window.history.replaceState(null, "", `${path}?${params.toString()}`);
 }
@@ -74,7 +79,7 @@ export default function App() {
   const [writerName, setWriterName] = useState(readWriterFromUrl);
   const [writers, setWriters] = useState<string[]>([readWriterFromUrl()]);
   const [selectedKcId, setSelectedKcId] = useState<string | null>(readKcIdFromUrl() ?? seedWorkspace.kcs[0].id);
-  const [selectedMiniId, setSelectedMiniId] = useState<string | null>(seedWorkspace.minis[0].id);
+  const [selectedMiniId, setSelectedMiniId] = useState<string | null>(readMiniIdFromUrl() ?? seedWorkspace.minis[0].id);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [dirty, setDirty] = useState(false);
   const [agentBusyLabel, setAgentBusyLabel] = useState<string | null>(null);
@@ -95,9 +100,10 @@ export default function App() {
     const local = loadLocalWorkspace(writerName);
     setWorkspace(local);
     const preferredId = initialKcId.current;
+    const preferredMiniId = readMiniIdFromUrl();
     const localKcId = (preferredId && local.kcs.some((kc) => kc.id === preferredId) ? preferredId : local.kcs[0]?.id) ?? null;
     setSelectedKcId(localKcId);
-    setSelectedMiniId(local.minis.find((mini) => mini.kcId === localKcId)?.id ?? null);
+    setSelectedMiniId(local.minis.find((mini) => mini.id === preferredMiniId && mini.kcId === localKcId)?.id ?? local.minis.find((mini) => mini.kcId === localKcId)?.id ?? null);
 
     api.listWriters().then((remoteWriters) => {
       if (!active) return;
@@ -109,7 +115,7 @@ export default function App() {
       setWorkspace(remote);
       const remoteKcId = (preferredId && remote.kcs.some((kc) => kc.id === preferredId) ? preferredId : remote.kcs[0]?.id) ?? null;
       setSelectedKcId(remoteKcId);
-      setSelectedMiniId(remote.minis.find((mini) => mini.kcId === remoteKcId)?.id ?? null);
+      setSelectedMiniId(remote.minis.find((mini) => mini.id === preferredMiniId && mini.kcId === remoteKcId)?.id ?? remote.minis.find((mini) => mini.kcId === remoteKcId)?.id ?? null);
     });
     return () => {
       active = false;
@@ -149,8 +155,8 @@ export default function App() {
   const selectedMini = minisForKc.find((mini) => mini.id === selectedMiniId) ?? minisForKc[0] ?? null;
 
   useEffect(() => {
-    setBrowserKcUrl(writerName, selectedKc?.id ?? null);
-  }, [writerName, selectedKc?.id]);
+    setBrowserKcUrl(writerName, selectedKc?.id ?? null, selectedMini?.id ?? null);
+  }, [writerName, selectedKc?.id, selectedMini?.id]);
 
   useEffect(() => {
     if (!selectedKc?.id) {
@@ -234,7 +240,8 @@ export default function App() {
   };
 
   const handleMiniChange = (mini: Mini, snapshot = false) => {
-    const updated = snapshot ? addVersion(mini, mini.steps, "manual", "Manual structure edit.") : { ...mini, updatedAt: new Date().toISOString() };
+    const baseMini = mini.status === "not_started" && (mini.steps.length > 0 || mini.title.trim()) ? { ...mini, status: "writing" as const } : mini;
+    const updated = snapshot ? addVersion(baseMini, baseMini.steps, "manual", "Manual structure edit.") : { ...baseMini, updatedAt: new Date().toISOString() };
     updateWorkspace((data) => ({
       ...data,
       minis: data.minis.map((item) => (item.id === updated.id ? updated : item)),
@@ -274,6 +281,7 @@ export default function App() {
 
   const handleAgentSend = async (prompt: string) => {
     if (!selectedMini) return;
+    if (selectedMini.status === "done") return;
     const kcId = selectedMini.kcId;
     if (/^\s*process(?:\s+agent)?\s+notes?\s*\.?\s*$/i.test(prompt)) {
       appendKcMessage("writer", prompt, kcId);
@@ -295,6 +303,7 @@ export default function App() {
 
   const handleProcessNotes = async (kcId = selectedMini?.kcId) => {
     if (!selectedMini) return;
+    if (selectedMini.status === "done") return;
     setAgentBusyLabel("Thinking...");
     try {
       const result = await api.processNotes(selectedMini.id);
@@ -383,6 +392,7 @@ export default function App() {
           mini={selectedMini}
           messages={messages}
           busyLabel={agentBusyLabel}
+          disabledReason={selectedMini?.status === "done" ? "Mini is Done. Change status back to Writing to edit." : null}
           onSend={handleAgentSend}
         />
       </main>

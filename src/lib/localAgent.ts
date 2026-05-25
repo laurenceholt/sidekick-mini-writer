@@ -59,6 +59,7 @@ export function generateMiniForKc(kc: KnowledgeComponent, miniIndex: number): Mi
     kcId: kc.id,
     miniIndex,
     title: `${kc.title} mini ${miniIndex}`,
+    status: "writing",
     currentVersionId: version.id,
     steps,
     versions: [version],

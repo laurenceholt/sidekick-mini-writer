@@ -28,7 +28,7 @@ export function fallbackSteps(kc: KnowledgeComponent, miniIndex: number): MiniSt
     ["Which value makes `a + 6 = 14` true: 7 or 8?", "Two choice buttons with substitution preview.", "8", "The left side must equal 14."],
     ["Which value makes 0.4x = 20 true: 15 or 50?", "Two choice buttons with substitution preview.", "50", "0.4 x 50 = 20."],
     ["Explain why 0.4 x 15 = 20 is false.", "Short response.", "The left side is 6, not 20.", "Evaluate the left side first."],
-  ].map(([instruction, interaction, targetResponse, hint]) => ({ id: "", instruction, interaction, targetResponse, hint, agentNotes: "" }));
+  ].map(([instruction, interaction, targetResponse, hint]) => ({ id: "", instruction, interaction, targetResponse, hint, writerNotes: "", agentNotes: "" }));
   return renumberSteps(kc, miniIndex, steps);
 }
 

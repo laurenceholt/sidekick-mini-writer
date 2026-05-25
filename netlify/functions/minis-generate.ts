@@ -52,7 +52,7 @@ Write 3-5 short rationale bullets explaining the hook, sequencing, interaction c
     );
     const mini = await createMini(kc, miniIndex, generated.title, generated.steps, "generate", "Generated from KC.");
     const rationale = Array.isArray(generated.rationale) && generated.rationale.length ? generated.rationale : ["Built a short practice arc from warm-up to synthesis."];
-    const response = `Done. Claude generated a mini for this KC.\n\n**Rationale**\n${rationale.map((item) => `- ${item}`).join("\n")}`;
+    const response = `Done. Claude generated a mini for this KC.\n\n**Rationale**\n${rationale.map((item, index) => `${index + 1}. ${item}`).join("\n")}`;
     await logFeedback({ kc_id: kc.id, mini_id: mini.id, event_type: "generate_mini", agent_response: response, after_version_id: mini.currentVersionId });
     return json({ mini, response }, { status: 201 });
   } catch (err) {

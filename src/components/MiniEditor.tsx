@@ -2,7 +2,7 @@ import { CopyPlus, Eye, EyeOff, GripVertical, Link2, Plus, Trash2 } from "lucide
 import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { makeStepId, renumberSteps } from "../lib/ids";
-import type { KnowledgeComponent, Mini, MiniStep } from "../lib/types";
+import type { KnowledgeComponent, Mini, MiniStatus, MiniStep } from "../lib/types";
 import { MarkdownText } from "./MarkdownText";
 
 interface MiniEditorProps {
@@ -17,6 +17,13 @@ interface MiniEditorProps {
 }
 
 type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "writerNotes" | "agentNotes" | "actions";
+
+const STATUS_OPTIONS: { value: MiniStatus; label: string }[] = [
+  { value: "not_started", label: "Not started" },
+  { value: "writing", label: "Writing" },
+  { value: "ready_for_review", label: "Ready for review" },
+  { value: "done", label: "Done" },
+];
 
 function kcCode(kc: KnowledgeComponent) {
   return `${kc.grade}-${kc.unit}-${kc.lesson}`;
@@ -63,6 +70,7 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
       steps: selectedMini.steps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)),
     });
   };
+  const isDone = selectedMini.status === "done";
 
   const addStep = () => {
     const nextStep: MiniStep = {
@@ -155,16 +163,9 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
           </div>
         </div>
         <div className="toolbar-actions">
-          <button className="icon-button" aria-label="Copy KC link" onClick={() => navigator.clipboard?.writeText(window.location.href)}>
-            <Link2 size={17} />
-          </button>
           <button className="secondary-button" onClick={onAddMini} disabled={minis.length >= 4}>
             <CopyPlus size={17} />
             Add mini
-          </button>
-          <button className="secondary-button" onClick={addStep}>
-            <Plus size={17} />
-            Add step
           </button>
         </div>
       </div>
@@ -181,11 +182,44 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="mini-workbar">
+        <div className="mini-title-group">
+          <p className="eyebrow">Mini {selectedMini.miniIndex}</p>
+          <input
+            className="mini-title-input"
+            value={selectedMini.title}
+            disabled={isDone}
+            onChange={(event) => onChangeMini({ ...selectedMini, title: event.target.value })}
+          />
+        </div>
+        <div className="mini-controls">
+          <label className="status-select-label">
+            <span>Status</span>
+            <select
+              className={`status-select status-${selectedMini.status ?? "writing"}`}
+              value={selectedMini.status ?? "writing"}
+              onChange={(event) => onChangeMini({ ...selectedMini, status: event.target.value as MiniStatus })}
+            >
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+          </label>
+          <button className="secondary-button" onClick={addStep} disabled={isDone}>
+            <Plus size={17} />
+            Add step
+          </button>
+          <button className="icon-button" aria-label="Copy mini link" onClick={() => navigator.clipboard?.writeText(window.location.href)}>
+            <Link2 size={17} />
+          </button>
         <label className="version-select-label">
           <span>Version</span>
           <select
             className="version-select"
             value={selectedMini.currentVersionId}
+            disabled={isDone}
             onChange={(event) => {
               if (event.target.value !== selectedMini.currentVersionId) onRevert(event.target.value);
             }}
@@ -197,17 +231,10 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
             ))}
           </select>
         </label>
-      </div>
-
-      <div className="mini-title-bar">
-        <input
-          className="mini-title-input"
-          value={selectedMini.title}
-          onChange={(event) => onChangeMini({ ...selectedMini, title: event.target.value })}
-        />
-        <button className="icon-button danger" aria-label="Delete mini" onClick={() => onDeleteMini(selectedMini.id)} disabled={minis.length <= 1}>
+        <button className="icon-button danger" aria-label="Delete mini" onClick={() => onDeleteMini(selectedMini.id)} disabled={isDone || minis.length <= 1}>
           <Trash2 size={17} />
         </button>
+        </div>
       </div>
 
       <div className="step-table-wrap">
@@ -274,12 +301,14 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   draggedStepId && dragTargetIndex === index ? "drop-before" : "",
                 ].filter(Boolean).join(" ")}
                 onDragOver={(event) => {
+                  if (isDone) return;
                   event.preventDefault();
                   const bounds = event.currentTarget.getBoundingClientRect();
                   const midpoint = bounds.top + bounds.height / 2;
                   setDropIndex(event.clientY < midpoint ? index : index + 1);
                 }}
                 onDrop={(event) => {
+                  if (isDone) return;
                   event.preventDefault();
                   moveDraggedStep(dropIndex);
                   setDraggedStepId(null);
@@ -289,7 +318,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                 <td className="drag-cell">
                   <button
                     className="drag-handle"
-                    draggable
+                    draggable={!isDone}
+                    disabled={isDone}
                     aria-label={`Drag step ${step.id}`}
                     onDragStart={(event) => {
                       setDraggedStepId(step.id);
@@ -307,21 +337,22 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                 </td>
                 {showStepIds && <td className="step-id">{step.id}</td>}
                 <td>
-                  <textarea value={step.instruction} onChange={(event) => updateStep(step.id, { instruction: event.target.value })} />
+                  <textarea value={step.instruction} disabled={isDone} onChange={(event) => updateStep(step.id, { instruction: event.target.value })} />
                 </td>
                 <td>
-                  <textarea value={step.interaction} onChange={(event) => updateStep(step.id, { interaction: event.target.value })} />
+                  <textarea value={step.interaction} disabled={isDone} onChange={(event) => updateStep(step.id, { interaction: event.target.value })} />
                   <label className="target-row">
                     <span>Target</span>
-                    <input value={step.targetResponse} onChange={(event) => updateStep(step.id, { targetResponse: event.target.value })} />
+                    <input value={step.targetResponse} disabled={isDone} onChange={(event) => updateStep(step.id, { targetResponse: event.target.value })} />
                   </label>
                 </td>
                 <td>
-                  <textarea value={step.hint} onChange={(event) => updateStep(step.id, { hint: event.target.value })} />
+                  <textarea value={step.hint} disabled={isDone} onChange={(event) => updateStep(step.id, { hint: event.target.value })} />
                 </td>
                 <td>
                   <textarea
                     value={step.writerNotes ?? ""}
+                    disabled={isDone}
                     placeholder="Request a change for this step"
                     onChange={(event) => updateStep(step.id, { writerNotes: event.target.value })}
                   />
@@ -334,6 +365,7 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   ) : (
                     <textarea
                       value={step.agentNotes}
+                      disabled={isDone}
                       placeholder="Agent status or rationale"
                       autoFocus={editingAgentNoteId === step.id}
                       onBlur={() => setEditingAgentNoteId(null)}
@@ -342,7 +374,7 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   )}
                 </td>
                 <td className="row-actions">
-                  <button className="icon-button danger" aria-label="Delete step" onClick={() => deleteStep(step.id)}>
+                  <button className="icon-button danger" aria-label="Delete step" onClick={() => deleteStep(step.id)} disabled={isDone}>
                     <Trash2 size={16} />
                   </button>
                 </td>

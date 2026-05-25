@@ -74,6 +74,7 @@ export const seedMini: Mini = {
   kcId: seedKc.id,
   miniIndex: 1,
   title: "Truth of equations",
+  status: "writing",
   currentVersionId: seedVersion.id,
   steps: rawSteps,
   versions: [seedVersion],

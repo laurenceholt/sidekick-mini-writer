@@ -140,6 +140,7 @@ ${MINI_LESSON_SKILL}`,
 Important decision rule:
 - If the writer is asking for ideas, critique, explanation, options, clarification, or a planning response, do not update the mini. Set updateMini to false, return the original steps unchanged, and offer to make a change if the writer chooses an option.
 - When the writer asks for ideas, format the response as a numbered list so the writer can refer to each idea by number. Include concrete examples, not shorthand narrative.
+- When any response includes a list of options, recommendations, hooks, examples, or possible revisions, use a numbered list so the writer can refer to items by number.
 - If the writer clearly asks you to revise, use, apply, change, shorten, rewrite, add, remove, or otherwise alter the mini, set updateMini to true and return updated steps.
 - Use recent chat history to resolve follow-ups like "use idea #4".
 - If web search is available and useful, you may use it. If you use web search, include source URLs or short source labels in response.

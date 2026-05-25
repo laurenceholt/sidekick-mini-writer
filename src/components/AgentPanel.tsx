@@ -6,11 +6,13 @@ interface AgentPanelProps {
   mini: Mini | null;
   messages: AgentMessage[];
   busyLabel: string | null;
+  disabledReason?: string | null;
   onSend: (prompt: string) => void;
 }
 
-export function AgentPanel({ mini, messages, busyLabel, onSend }: AgentPanelProps) {
+export function AgentPanel({ mini, messages, busyLabel, disabledReason, onSend }: AgentPanelProps) {
   const isBusy = Boolean(busyLabel);
+  const isDisabled = isBusy || !mini || Boolean(disabledReason);
 
   return (
     <aside className="panel agent-panel">
@@ -43,14 +45,14 @@ export function AgentPanel({ mini, messages, busyLabel, onSend }: AgentPanelProp
           event.preventDefault();
           const form = event.currentTarget;
           const input = form.elements.namedItem("prompt") as HTMLTextAreaElement;
-          if (input.value.trim() && !isBusy) {
+          if (input.value.trim() && !isDisabled) {
             onSend(input.value.trim());
             form.reset();
           }
         }}
       >
-        <textarea name="prompt" placeholder="Ask the agent to revise this mini" disabled={isBusy || !mini} />
-        <button className="send-button" type="submit" aria-label="Send to agent" disabled={isBusy || !mini}>
+        <textarea name="prompt" placeholder={disabledReason ?? "Ask the agent to revise this mini"} disabled={isDisabled} />
+        <button className="send-button" type="submit" aria-label="Send to agent" disabled={isDisabled}>
           <Send size={16} />
         </button>
       </form>

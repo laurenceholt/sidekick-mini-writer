@@ -115,7 +115,6 @@ button:disabled {
   height: 32px;
   flex: 0 0 auto;
   border-radius: 8px;
-  border: 2px solid var(--minis-ink);
   background: #fffdf8;
   box-shadow: 0 8px 18px -14px rgb(24 20 15 / 65%);
 }
@@ -425,6 +424,15 @@ h2 {
   font-weight: 900;
 }
 
+.mini-title-input:disabled,
+.step-table textarea:disabled,
+.target-row input:disabled,
+.version-select:disabled {
+  color: var(--muted);
+  background: #f4f1ea;
+  cursor: not-allowed;
+}
+
 .grade-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -595,6 +603,69 @@ h2 {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 8px;
+}
+
+.mini-workbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 0 0 10px;
+  border-top: 1px solid #e6dfd3;
+  padding-top: 10px;
+}
+
+.mini-title-group {
+  min-width: 0;
+}
+
+.mini-controls {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status-select-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-select {
+  min-width: 142px;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffefa;
+  color: var(--minis-ink);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  outline: none;
+  padding: 6px 8px;
+  text-transform: none;
+}
+
+.status-writing {
+  border-color: #d9a91c;
+  background: rgb(232 183 54 / 12%);
+}
+
+.status-ready_for_review {
+  border-color: #3b82f6;
+  background: rgb(59 130 246 / 10%);
+}
+
+.status-done {
+  border-color: var(--minis-green);
+  background: rgb(45 190 96 / 10%);
 }
 
 .mini-tabs {
@@ -1068,6 +1139,24 @@ h2 {
   .mini-tabs-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .mini-workbar {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-controls {
+    align-items: stretch;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .status-select-label {
+    width: 100%;
+  }
+
+  .status-select {
+    width: 100%;
   }
 
   .version-select-label {
