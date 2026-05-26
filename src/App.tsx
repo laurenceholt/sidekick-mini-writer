@@ -8,13 +8,12 @@ import { api, fetchWorkspace } from "./lib/api";
 import { createId } from "./lib/ids";
 import { generateMiniForKc } from "./lib/localAgent";
 import { loadLocalWorkspace, saveLocalWorkspace } from "./lib/localStore";
-import { seedWorkspace } from "./lib/seed";
 import { addVersion, revertMini } from "./lib/versions";
 import type { AgentMessage, KnowledgeComponent, Mini, NewKcInput, WorkspaceData } from "./lib/types";
 
-const DEFAULT_WRITER = "Laurence";
 const WRITER_KEY = "mini-writer:selected-writer";
 const KC_PANEL_COLLAPSED_KEY = "mini-writer:kc-panel-collapsed";
+const EMPTY_WORKSPACE: WorkspaceData = { kcs: [], minis: [] };
 const THINKING_LABELS = [
   "Thinking...",
   "Reading the mini...",
@@ -54,7 +53,7 @@ function errorMessage(err: unknown) {
 }
 
 function readWriterFromUrl() {
-  return new URLSearchParams(window.location.search).get("writer") || localStorage.getItem(WRITER_KEY) || DEFAULT_WRITER;
+  return new URLSearchParams(window.location.search).get("writer");
 }
 
 function readKcIdFromUrl() {
@@ -66,20 +65,22 @@ function readMiniIdFromUrl() {
   return new URLSearchParams(window.location.search).get("mini");
 }
 
-function setBrowserKcUrl(writerName: string, kcId: string | null, miniId: string | null) {
+function setBrowserKcUrl(writerName: string | null, kcId: string | null, miniId: string | null) {
   const params = new URLSearchParams();
-  params.set("writer", writerName);
+  if (writerName) params.set("writer", writerName);
   if (miniId) params.set("mini", miniId);
   const path = kcId ? `/kc/${kcId}` : "/";
-  window.history.replaceState(null, "", `${path}?${params.toString()}`);
+  const query = params.toString();
+  window.history.replaceState(null, "", query ? `${path}?${query}` : path);
 }
 
 export default function App() {
-  const [workspace, setWorkspace] = useState<WorkspaceData>(seedWorkspace);
-  const [writerName, setWriterName] = useState(readWriterFromUrl);
-  const [writers, setWriters] = useState<string[]>([readWriterFromUrl()]);
-  const [selectedKcId, setSelectedKcId] = useState<string | null>(readKcIdFromUrl() ?? seedWorkspace.kcs[0].id);
-  const [selectedMiniId, setSelectedMiniId] = useState<string | null>(readMiniIdFromUrl() ?? seedWorkspace.minis[0].id);
+  const initialWriter = readWriterFromUrl();
+  const [workspace, setWorkspace] = useState<WorkspaceData>(EMPTY_WORKSPACE);
+  const [writerName, setWriterName] = useState<string | null>(initialWriter);
+  const [writers, setWriters] = useState<string[]>(initialWriter ? [initialWriter] : []);
+  const [selectedKcId, setSelectedKcId] = useState<string | null>(initialWriter ? readKcIdFromUrl() : null);
+  const [selectedMiniId, setSelectedMiniId] = useState<string | null>(initialWriter ? readMiniIdFromUrl() : null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [dirty, setDirty] = useState(false);
   const [agentBusyLabel, setAgentBusyLabel] = useState<string | null>(null);
@@ -100,6 +101,27 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    api.listWriters().then((remoteWriters) => {
+      if (!active) return;
+      setWriters(remoteWriters.sort((a, b) => a.localeCompare(b)));
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!writerName) {
+      localStorage.removeItem(WRITER_KEY);
+      setWorkspace(EMPTY_WORKSPACE);
+      setSelectedKcId(null);
+      setSelectedMiniId(null);
+      setMessages([]);
+      return () => {
+        active = false;
+      };
+    }
     localStorage.setItem(WRITER_KEY, writerName);
     const local = loadLocalWorkspace(writerName);
     setWorkspace(local);
@@ -109,10 +131,7 @@ export default function App() {
     setSelectedKcId(localKcId);
     setSelectedMiniId(local.minis.find((mini) => mini.id === preferredMiniId && mini.kcId === localKcId)?.id ?? local.minis.find((mini) => mini.kcId === localKcId)?.id ?? null);
 
-    api.listWriters().then((remoteWriters) => {
-      if (!active) return;
-      setWriters([...new Set([...remoteWriters, writerName])].sort((a, b) => a.localeCompare(b)));
-    }).catch(() => undefined);
+    setWriters((current) => [...new Set([...current, writerName])].sort((a, b) => a.localeCompare(b)));
 
     fetchWorkspace(writerName).then((remote) => {
       if (!active) return;
@@ -127,7 +146,7 @@ export default function App() {
   }, [writerName]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || !writerName) return;
     const timeout = window.setTimeout(() => {
       saveLocalWorkspace(workspace, writerName);
       setDirty(false);
@@ -199,6 +218,7 @@ export default function App() {
   };
 
   const handleKcChange = (kc: KnowledgeComponent) => {
+    if (!writerName) return;
     const updated = { ...kc, writerName, updatedAt: new Date().toISOString() };
     updateWorkspace((data) => ({
       ...data,
@@ -214,6 +234,7 @@ export default function App() {
   };
 
   const handleCreateKc = async (input: NewKcInput) => {
+    if (!writerName) return;
     setKcCreateError(null);
     setCreatingKc(input);
     setSelectedKcId(null);
@@ -363,6 +384,11 @@ export default function App() {
   };
 
   const handleWriterSelect = (value: string) => {
+    if (!value) {
+      setWriterName(null);
+      initialKcId.current = null;
+      return;
+    }
     if (value !== "__new__") {
       setWriterName(value);
       initialKcId.current = null;
@@ -390,7 +416,8 @@ export default function App() {
         </div>
         <label className="writer-switcher">
           <span>Current writer</span>
-          <select value={writerName} onChange={(event) => handleWriterSelect(event.target.value)}>
+          <select value={writerName ?? ""} onChange={(event) => handleWriterSelect(event.target.value)}>
+            <option value="">Select writer</option>
             {writers.map((writer) => (
               <option key={writer} value={writer}>{writer}</option>
             ))}
@@ -417,12 +444,14 @@ export default function App() {
           creatingKc={creatingKc}
           createError={kcCreateError}
           generatingMini={generatingMiniKcId === selectedKc?.id}
+          writerSelected={Boolean(writerName)}
         />
         <MiniEditor
           kc={selectedKc}
           minis={minisForKc}
           selectedMiniId={selectedMini?.id ?? null}
           creatingKc={creatingKc}
+          generatingMini={Boolean(generatingMiniKcId)}
           onSelectMini={setSelectedMiniId}
           onChangeMini={handleMiniChange}
           onAddMini={handleAddMini}

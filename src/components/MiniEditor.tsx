@@ -15,6 +15,7 @@ interface MiniEditorProps {
   onDeleteMini: (id: string) => void;
   onRevert: (versionId: string) => void;
   creatingKc?: { grade: number; topic: number; kcNumber: number; condition: string; response: string } | null;
+  generatingMini?: boolean;
 }
 
 type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "writerNotes" | "agentNotes" | "actions";
@@ -30,7 +31,7 @@ function kcCode(kc: KnowledgeComponent) {
   return `${kc.grade}-${kc.topic}-${kc.kcNumber}`;
 }
 
-export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini, onRevert, creatingKc }: MiniEditorProps) {
+export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini, onRevert, creatingKc, generatingMini }: MiniEditorProps) {
   const selectedMini = minis.find((mini) => mini.id === selectedMiniId) ?? minis[0];
   const [showStepIds, setShowStepIds] = useState(true);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
@@ -51,7 +52,28 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
     return (
       <main className="main-panel empty-panel">
         <h2>{creatingKc ? `Working on KC ${creatingKc.grade}-${creatingKc.topic}-${creatingKc.kcNumber}` : "No KC selected"}</h2>
-        <p>{creatingKc ? "The KC panel is being filled out from your condition and response." : "Create a KC for this writer to start authoring minis."}</p>
+        <p>{creatingKc ? "The KC panel is being filled out from your condition and response." : "Select a writer, then choose or create a KC to start authoring minis."}</p>
+      </main>
+    );
+  }
+
+  if (generatingMini) {
+    return (
+      <main className="main-panel">
+        <section className="working-kc main-working-box">
+          <div className="working-spinner" aria-hidden />
+          <p className="eyebrow">Generating</p>
+          <h2>Building a mini for {kcCode(kc)}</h2>
+          <p>Claude is drafting the step sequence, interactions, targets, hints, and a short rationale. This can take a minute.</p>
+          <div className="working-preview">
+            <strong>Knowledge component</strong>
+            <span>{kc.title}</span>
+            <strong>Condition</strong>
+            <span>{kc.condition}</span>
+            <strong>Response</strong>
+            <span>{kc.response}</span>
+          </div>
+        </section>
       </main>
     );
   }

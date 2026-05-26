@@ -16,6 +16,7 @@ interface KcPanelProps {
   creatingKc: NewKcInput | null;
   createError: string | null;
   generatingMini: boolean;
+  writerSelected: boolean;
 }
 
 function kcCode(kc: KnowledgeComponent) {
@@ -40,6 +41,7 @@ export function KcPanel({
   creatingKc,
   createError,
   generatingMini,
+  writerSelected,
 }: KcPanelProps) {
   const [draftKc, setDraftKc] = useState<NewKcInput | null>(null);
 
@@ -98,7 +100,7 @@ export function KcPanel({
         ))}
       </select>
 
-      <button className="secondary-button add-kc-button" type="button" onClick={openAddKc}>
+      <button className="secondary-button add-kc-button" type="button" onClick={openAddKc} disabled={!writerSelected}>
         <FilePlus2 size={17} />
         Add KC
       </button>
@@ -118,7 +120,8 @@ export function KcPanel({
         </section>
       )}
 
-      {!selectedKc && !creatingKc && <p className="empty-copy">This writer has no KCs yet. Add a KC to start a blank workspace.</p>}
+      {!writerSelected && !creatingKc && <p className="empty-copy">Select a writer to load their KCs and minis.</p>}
+      {writerSelected && !selectedKc && !creatingKc && <p className="empty-copy">This writer has no KCs yet. Add a KC to start a blank workspace.</p>}
       {createError && !creatingKc && <p className="error-copy">{createError}</p>}
 
       {draftKc && (
