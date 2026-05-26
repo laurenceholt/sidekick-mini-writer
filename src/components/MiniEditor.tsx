@@ -246,8 +246,8 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
             <col style={{ width: columnWidths.instruction }} />
             <col style={{ width: columnWidths.interaction }} />
             <col style={{ width: columnWidths.hint }} />
-            <col style={{ width: columnWidths.writerNotes }} />
             <col style={{ width: columnWidths.agentNotes }} />
+            <col style={{ width: columnWidths.writerNotes }} />
             <col style={{ width: columnWidths.actions }} />
           </colgroup>
           <thead>
@@ -283,12 +283,12 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                 <ResizeHandle column="hint" />
               </th>
               <th className="resizable-head">
-                Writer notes
-                <ResizeHandle column="writerNotes" />
-              </th>
-              <th className="resizable-head">
                 Agent notes
                 <ResizeHandle column="agentNotes" />
+              </th>
+              <th className="resizable-head">
+                Writer notes
+                <ResizeHandle column="writerNotes" />
               </th>
               <th aria-label="Actions" />
             </tr>
@@ -351,14 +351,6 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                   <textarea value={step.hint} disabled={isDone} onChange={(event) => updateStep(step.id, { hint: event.target.value })} />
                 </td>
                 <td>
-                  <textarea
-                    value={step.writerNotes ?? ""}
-                    disabled={isDone}
-                    placeholder="Request a change for this step"
-                    onChange={(event) => updateStep(step.id, { writerNotes: event.target.value })}
-                  />
-                </td>
-                <td>
                   {step.agentNotes.trim() && editingAgentNoteId !== step.id ? (
                     <button className="markdown-note-preview" type="button" onClick={() => setEditingAgentNoteId(step.id)}>
                       <MarkdownText text={step.agentNotes} />
@@ -373,6 +365,14 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
                       onChange={(event) => updateStep(step.id, { agentNotes: event.target.value })}
                     />
                   )}
+                </td>
+                <td>
+                  <textarea
+                    value={step.writerNotes ?? ""}
+                    disabled={isDone}
+                    placeholder="Request a change for this step"
+                    onChange={(event) => updateStep(step.id, { writerNotes: event.target.value })}
+                  />
                 </td>
                 <td className="row-actions">
                   <button className="icon-button danger" aria-label="Delete step" onClick={() => deleteStep(step.id)} disabled={isDone}>

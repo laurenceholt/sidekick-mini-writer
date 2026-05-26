@@ -21,6 +21,10 @@ function kcCode(kc: KnowledgeComponent) {
   return `${kc.grade}-${kc.topic}-${kc.kcNumber}`;
 }
 
+function shortStandardCode(code: string) {
+  return code.replace(/^CCSS\.MATH\.CONTENT\./i, "");
+}
+
 export function KcPanel({
   kcs,
   selectedKc,
@@ -244,7 +248,7 @@ export function KcPanel({
           {selectedKc.standards.map((standard) => (
             <div className="standard-pill" key={standard.code}>
               <div>
-                <strong>{standard.code}</strong>
+                <strong>{shortStandardCode(standard.code)}</strong>
                 <span>{standard.label}</span>
               </div>
               <p>{standard.description}</p>

@@ -69,6 +69,7 @@ Use this JSON shape:
   "notes_md": string
 }
 
+Use short CCSS standard codes such as 6.EE.A.2. Do not include the CCSS.MATH.CONTENT. prefix.
 Use plain text math such as 0.4 x 15 = 6. Do not use math markup delimiters.`,
   );
 }

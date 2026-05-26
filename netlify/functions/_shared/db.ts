@@ -29,6 +29,17 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "kc";
 }
 
+function normalizeStandardCode(code: string) {
+  return code.replace(/^CCSS\.MATH\.CONTENT\./i, "");
+}
+
+function normalizeStandards(standards: any[] = []) {
+  return standards.map((standard) => ({
+    ...standard,
+    code: normalizeStandardCode(String(standard.code ?? "")),
+  }));
+}
+
 function isMissingWriterSchema(error: any) {
   const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
   return message.includes(TABLES.writers) || message.includes("writer_id") || message.includes("PGRST200") || message.includes("42P01") || message.includes("42703");
@@ -68,7 +79,7 @@ export function toKc(row: Record<string, any>, writerName = DEFAULT_WRITER): Kno
     condition: row.condition,
     response: row.response,
     workedExampleMd: row.worked_example_md,
-    standards: row.standards ?? [],
+    standards: normalizeStandards(row.standards ?? []),
     notesMd: stripLegacyWriterMarker(row.notes_md),
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
@@ -86,7 +97,7 @@ function kcRow(kc: Partial<KnowledgeComponent>) {
     condition: kc.condition,
     response: kc.response,
     worked_example_md: kc.workedExampleMd,
-    standards: kc.standards,
+    standards: normalizeStandards(kc.standards),
     notes_md: stripLegacyWriterMarker(kc.notesMd),
   };
 }
@@ -281,7 +292,7 @@ function toKcLike(row: Record<string, any>) {
     condition: row.condition,
     response: row.response,
     workedExampleMd: row.worked_example_md,
-    standards: row.standards ?? [],
+    standards: normalizeStandards(row.standards ?? []),
     notesMd: stripLegacyWriterMarker(row.notes_md),
     deletedAt: row.deleted_at,
   };
