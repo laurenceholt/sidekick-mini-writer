@@ -24,6 +24,13 @@ export interface KnowledgeComponent {
   updatedAt: string;
 }
 
+export interface NewKcInput {
+  title: string;
+  grade: number;
+  topic: number;
+  kcNumber: number;
+}
+
 export interface MiniStep {
   id: string;
   instruction: string;

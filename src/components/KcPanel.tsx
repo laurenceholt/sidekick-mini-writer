@@ -1,5 +1,6 @@
-import { BookOpen, FilePlus2, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
-import type { KnowledgeComponent } from "../lib/types";
+import { BookOpen, FilePlus2, PanelLeftClose, PanelLeftOpen, Sparkles, X } from "lucide-react";
+import { useState } from "react";
+import type { KnowledgeComponent, NewKcInput } from "../lib/types";
 
 interface KcPanelProps {
   kcs: KnowledgeComponent[];
@@ -8,7 +9,7 @@ interface KcPanelProps {
   collapsed: boolean;
   onSelect: (id: string) => void;
   onChange: (kc: KnowledgeComponent) => void;
-  onCreate: (title: string) => void;
+  onCreate: (input: NewKcInput) => void;
   onGenerateMini: () => void;
   onToggleCollapsed: () => void;
 }
@@ -28,6 +29,24 @@ export function KcPanel({
   onGenerateMini,
   onToggleCollapsed,
 }: KcPanelProps) {
+  const [draftKc, setDraftKc] = useState<NewKcInput | null>(null);
+
+  const nextKcNumber = (grade: number, topic: number) => {
+    const matching = kcs.filter((kc) => kc.grade === grade && kc.topic === topic).map((kc) => kc.kcNumber);
+    return matching.length ? Math.max(...matching) + 1 : 1;
+  };
+
+  const openAddKc = () => {
+    const grade = selectedKc?.grade ?? 6;
+    const topic = selectedKc?.topic ?? 1;
+    setDraftKc({
+      title: "",
+      grade,
+      topic,
+      kcNumber: nextKcNumber(grade, topic),
+    });
+  };
+
   if (collapsed) {
     return (
       <aside className="panel left-panel collapsed-panel" aria-label="Knowledge component panel collapsed">
@@ -65,25 +84,79 @@ export function KcPanel({
         ))}
       </select>
 
-      <form
-        className="new-kc"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const form = event.currentTarget;
-          const input = form.elements.namedItem("title") as HTMLInputElement;
-          if (input.value.trim()) {
-            onCreate(input.value.trim());
-            form.reset();
-          }
-        }}
-      >
-        <input name="title" className="input" placeholder="New KC name" />
-        <button className="icon-button" aria-label="Create KC" type="submit">
-          <FilePlus2 size={18} />
-        </button>
-      </form>
+      <button className="secondary-button add-kc-button" type="button" onClick={openAddKc}>
+        <FilePlus2 size={17} />
+        Add KC
+      </button>
 
-      {!selectedKc && <p className="empty-copy">This writer has no KCs yet. Create one above to start a blank workspace.</p>}
+      {!selectedKc && <p className="empty-copy">This writer has no KCs yet. Add a KC to start a blank workspace.</p>}
+
+      {draftKc && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setDraftKc(null)}>
+          <form
+            className="kc-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-kc-title"
+            onMouseDown={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const title = draftKc.title.trim();
+              if (!title) return;
+              onCreate({ ...draftKc, title });
+              setDraftKc(null);
+            }}
+          >
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">New knowledge component</p>
+                <h2 id="add-kc-title">Add KC</h2>
+              </div>
+              <button className="icon-button" type="button" aria-label="Close Add KC" onClick={() => setDraftKc(null)}>
+                <X size={17} />
+              </button>
+            </div>
+
+            <label className="field-label" htmlFor="new-kc-title">KC title</label>
+            <input
+              id="new-kc-title"
+              className="input"
+              autoFocus
+              placeholder="Find the median of a set of values"
+              value={draftKc.title}
+              onChange={(event) => setDraftKc({ ...draftKc, title: event.target.value })}
+            />
+
+            <div className="grade-grid modal-grid">
+              {([
+                ["grade", "Grade"],
+                ["topic", "Topic"],
+                ["kcNumber", "KC #"],
+              ] as const).map(([field, label]) => (
+                <label key={field} className="mini-field">
+                  <span>{label}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={draftKc[field]}
+                    onChange={(event) => setDraftKc({ ...draftKc, [field]: Number(event.target.value) || 1 })}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="modal-actions">
+              <button className="secondary-button" type="button" onClick={() => setDraftKc(null)}>
+                Cancel
+              </button>
+              <button className="primary-button modal-primary" type="submit" disabled={!draftKc.title.trim()}>
+                <Sparkles size={17} />
+                Draft KC
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {selectedKc && (
         <>

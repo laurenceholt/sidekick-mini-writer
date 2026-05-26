@@ -1,5 +1,5 @@
 import { seedWorkspace } from "./seed";
-import type { AgentMessage, KnowledgeComponent, Mini, WorkspaceData } from "./types";
+import type { AgentMessage, KnowledgeComponent, Mini, NewKcInput, WorkspaceData } from "./types";
 
 export interface GenerateMiniResult {
   mini: Mini;
@@ -99,7 +99,7 @@ export async function fetchWorkspace(writerName: string): Promise<WorkspaceData>
 export const api = {
   listWriters: () => request<string[]>("/api/writers"),
   listAgentMessages: (kcId: string) => request<AgentMessage[]>(`/api/agent-messages?kcId=${encodeURIComponent(kcId)}`),
-  createKc: (title: string, writerName: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ title, writerName }) }),
+  createKc: (input: NewKcInput, writerName: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ ...input, writerName }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
   generateMini: (kcId: string) => request<GenerateMiniResult>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),

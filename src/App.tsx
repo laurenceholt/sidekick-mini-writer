@@ -10,7 +10,7 @@ import { generateMiniForKc } from "./lib/localAgent";
 import { loadLocalWorkspace, saveLocalWorkspace } from "./lib/localStore";
 import { seedWorkspace } from "./lib/seed";
 import { addVersion, revertMini } from "./lib/versions";
-import type { AgentMessage, KnowledgeComponent, Mini, WorkspaceData } from "./lib/types";
+import type { AgentMessage, KnowledgeComponent, Mini, NewKcInput, WorkspaceData } from "./lib/types";
 
 const DEFAULT_WRITER = "Laurence";
 const WRITER_KEY = "mini-writer:selected-writer";
@@ -209,10 +209,10 @@ export default function App() {
     );
   };
 
-  const handleCreateKc = async (title: string) => {
+  const handleCreateKc = async (input: NewKcInput) => {
     setAgentBusyLabel("Asking Claude to draft the KC...");
     try {
-      const kc = await api.createKc(title, writerName);
+      const kc = await api.createKc(input, writerName);
       updateWorkspace((data) => ({ ...data, kcs: [...data.kcs, kc] }));
       setSelectedKcId(kc.id);
       setSelectedMiniId(null);
