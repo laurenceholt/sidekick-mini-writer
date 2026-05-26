@@ -660,6 +660,13 @@ h2 {
   background: #25ad57;
 }
 
+.primary-button:disabled {
+  border-color: #c8c8c8;
+  background: #d9d9d9;
+  box-shadow: 0 3px 0 #b8b8b8;
+  color: #5f6368;
+}
+
 .secondary-button {
   border: 1px solid var(--border);
   background: #fffefa;

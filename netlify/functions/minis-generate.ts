@@ -1,65 +1,53 @@
 import type { Config } from "@netlify/functions";
-import { askAnthropicForJson } from "./_shared/ai";
-import { createMini, getKc, listMinis, logFeedback } from "./_shared/db";
-import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
+import { getKc } from "./_shared/db";
+import { createGenerateRequestId, ensureMiniGenerationStarted, getMiniGenerationStatus, runMiniGeneration } from "./_shared/generateMini";
 import { error, json } from "./_shared/response";
-import type { MiniStep } from "./_shared/types";
+
+type GenerateMiniRequest = {
+  kcId?: string;
+  requestId?: string;
+};
+
+async function startBackgroundGeneration(req: Request, kcId: string, requestId: string) {
+  const backgroundUrl = new URL("/.netlify/functions/minis-generate-background", req.url);
+  await fetch(backgroundUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kcId, requestId }),
+  });
+}
 
 export default async (req: Request) => {
   try {
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      const kcId = url.searchParams.get("kcId");
+      const requestId = url.searchParams.get("requestId");
+      if (!kcId) return error("kcId is required", 400);
+      if (!requestId) return error("requestId is required", 400);
+      const status = await getMiniGenerationStatus(kcId, requestId);
+      return status ? json(status) : error("Mini generation request not found", 404);
+    }
     if (req.method !== "POST") return error("Method not allowed", 405);
-    const { kcId } = (await req.json()) as { kcId?: string };
+    const { kcId, requestId = createGenerateRequestId() } = (await req.json()) as GenerateMiniRequest;
     if (!kcId) return error("kcId is required", 400);
     const kc = await getKc(kcId);
     if (!kc) return error("KC not found", 404);
-    const existing = await listMinis(kcId);
-    const miniIndex = Math.min(existing.length + 1, 4);
-    const generated = await askAnthropicForJson<{ title: string; rationale: string[]; steps: MiniStep[] }>(
-      `You write Sidekick mini lessons for grades 3-8. Return only valid JSON.
 
-Follow this skill exactly:
-${MINI_LESSON_SKILL}`,
-      `Create one mini lesson for this KC.
+    const existing = await getMiniGenerationStatus(kc.id, requestId);
+    if (existing) return json(existing, { status: existing.pending ? 202 : 200 });
 
-KC: ${kc.title}
-Condition: ${kc.condition}
-Response: ${kc.response}
-Worked example: ${kc.workedExampleMd}
-
-Return JSON:
-{
-  "title": string,
-  "rationale": [
-    string
-  ],
-  "steps": [
-    {
-      "id": string,
-      "instruction": string,
-      "interaction": string,
-      "targetResponse": string,
-      "hint": string,
-      "writerNotes": "",
-      "agentNotes": ""
+    const started = await ensureMiniGenerationStarted(kc, requestId);
+    if (!started) {
+      return json(await runMiniGeneration(kc, requestId), { status: 201 });
     }
-  ]
-}
-
-Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.topic}-${kc.kcNumber}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers. Set writerNotes and agentNotes to empty strings on every generated step.
-
-Write 3-5 short rationale bullets explaining the hook, sequencing, interaction choices, and how the mini follows the skill. Each rationale bullet should be a complete sentence, not shorthand.`,
-      { enableWebSearch: true },
-    );
-    const mini = await createMini(kc, miniIndex, generated.title, generated.steps, "generate", "Generated from KC.");
-    const rationale = Array.isArray(generated.rationale) && generated.rationale.length ? generated.rationale : ["Built a short practice arc from warm-up to synthesis."];
-    const response = `Done. Claude generated a mini for this KC.\n\n**Rationale**\n${rationale.map((item, index) => `${index + 1}. ${item}`).join("\n")}`;
-    await logFeedback({ kc_id: kc.id, mini_id: mini.id, event_type: "generate_mini", agent_response: response, after_version_id: mini.currentVersionId });
-    return json({ mini, response }, { status: 201 });
+    await startBackgroundGeneration(req, kc.id, requestId);
+    return json({ pending: true, requestId }, { status: 202 });
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");
   }
 };
 
 export const config: Config = {
-  path: "/api/generate-mini",
+  path: ["/api/generate-mini", "/api/generate-mini-status"],
 };

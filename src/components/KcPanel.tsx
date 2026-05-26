@@ -15,6 +15,7 @@ interface KcPanelProps {
   onToggleCollapsed: () => void;
   creatingKc: NewKcInput | null;
   createError: string | null;
+  generatingMini: boolean;
 }
 
 function kcCode(kc: KnowledgeComponent) {
@@ -38,6 +39,7 @@ export function KcPanel({
   onToggleCollapsed,
   creatingKc,
   createError,
+  generatingMini,
 }: KcPanelProps) {
   const [draftKc, setDraftKc] = useState<NewKcInput | null>(null);
 
@@ -265,9 +267,9 @@ export function KcPanel({
         onChange={(event) => onChange({ ...selectedKc, notesMd: event.target.value })}
       />
 
-      <button className="primary-button" onClick={onGenerateMini}>
+      <button className="primary-button" onClick={onGenerateMini} disabled={generatingMini}>
         <Sparkles size={18} />
-        Generate Mini
+        {generatingMini ? "Generating" : "Generate Mini"}
       </button>
         </>
       )}

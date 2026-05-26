@@ -85,12 +85,14 @@ export default function App() {
   const [agentBusyLabel, setAgentBusyLabel] = useState<string | null>(null);
   const [creatingKc, setCreatingKc] = useState<NewKcInput | null>(null);
   const [kcCreateError, setKcCreateError] = useState<string | null>(null);
+  const [generatingMiniKcId, setGeneratingMiniKcId] = useState<string | null>(null);
   const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
   const messageCache = useRef(new Map<string, AgentMessage[]>());
   const selectedKcIdRef = useRef<string | null>(selectedKcId);
   const initialKcId = useRef(readKcIdFromUrl());
+  const generatingMiniRef = useRef<string | null>(null);
 
   useEffect(() => {
     selectedKcIdRef.current = selectedKcId;
@@ -255,15 +257,20 @@ export default function App() {
   const handleGenerateMini = async () => {
     if (!selectedKc) return;
     const kcId = selectedKc.id;
-    setAgentBusyLabel("Asking Claude to generate a mini...");
+    if (generatingMiniRef.current === kcId) return;
+    generatingMiniRef.current = kcId;
+    setGeneratingMiniKcId(kcId);
+    setAgentBusyLabel("Generating mini...");
     try {
-      const { mini, response } = await api.generateMini(selectedKc.id);
+      const { mini, response } = await api.generateMini(kcId);
       updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
       setSelectedMiniId(mini.id);
       appendKcMessage("agent", response, kcId);
     } catch (err) {
       appendKcMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`, kcId);
     } finally {
+      generatingMiniRef.current = null;
+      setGeneratingMiniKcId(null);
       setAgentBusyLabel(null);
     }
   };
@@ -409,6 +416,7 @@ export default function App() {
           onToggleCollapsed={() => setKcPanelCollapsed((current) => !current)}
           creatingKc={creatingKc}
           createError={kcCreateError}
+          generatingMini={generatingMiniKcId === selectedKc?.id}
         />
         <MiniEditor
           kc={selectedKc}
