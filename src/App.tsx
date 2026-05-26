@@ -83,6 +83,8 @@ export default function App() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [dirty, setDirty] = useState(false);
   const [agentBusyLabel, setAgentBusyLabel] = useState<string | null>(null);
+  const [creatingKc, setCreatingKc] = useState<NewKcInput | null>(null);
+  const [kcCreateError, setKcCreateError] = useState<string | null>(null);
   const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
@@ -210,6 +212,10 @@ export default function App() {
   };
 
   const handleCreateKc = async (input: NewKcInput) => {
+    setKcCreateError(null);
+    setCreatingKc(input);
+    setSelectedKcId(null);
+    setSelectedMiniId(null);
     setAgentBusyLabel("Asking Claude to draft the KC...");
     try {
       const kc = await api.createKc(input, writerName);
@@ -217,10 +223,33 @@ export default function App() {
       setSelectedKcId(kc.id);
       setSelectedMiniId(null);
     } catch (err) {
-      appendKcMessage("agent", `I couldn't ask Claude to create that KC: ${errorMessage(err)}`);
+      setKcCreateError(`I couldn't ask Claude to create that KC: ${errorMessage(err)}`);
     } finally {
+      setCreatingKc(null);
       setAgentBusyLabel(null);
     }
+  };
+
+  const handleDeleteKc = async (kcId: string) => {
+    const kc = workspace.kcs.find((item) => item.id === kcId);
+    if (!kc) return;
+    const confirmed = window.confirm(`Delete KC ${kc.grade}-${kc.topic}-${kc.kcNumber} · ${kc.title}?\n\nThis will hide it from the app but keep it in the database as soft deleted.`);
+    if (!confirmed) return;
+    try {
+      await api.deleteKc(kcId);
+    } catch (err) {
+      appendKcMessage("agent", `I couldn't delete that KC: ${errorMessage(err)}`, kcId);
+      return;
+    }
+    const remainingKcs = workspace.kcs.filter((item) => item.id !== kcId);
+    const nextKc = remainingKcs[0] ?? null;
+    updateWorkspace((data) => ({
+      ...data,
+      kcs: data.kcs.filter((item) => item.id !== kcId),
+      minis: data.minis.filter((mini) => mini.kcId !== kcId),
+    }));
+    setSelectedKcId(nextKc?.id ?? null);
+    setSelectedMiniId(nextKc ? workspace.minis.find((mini) => mini.kcId === nextKc.id)?.id ?? null : null);
   };
 
   const handleGenerateMini = async () => {
@@ -375,13 +404,17 @@ export default function App() {
           }}
           onChange={handleKcChange}
           onCreate={handleCreateKc}
+          onDelete={handleDeleteKc}
           onGenerateMini={handleGenerateMini}
           onToggleCollapsed={() => setKcPanelCollapsed((current) => !current)}
+          creatingKc={creatingKc}
+          createError={kcCreateError}
         />
         <MiniEditor
           kc={selectedKc}
           minis={minisForKc}
           selectedMiniId={selectedMini?.id ?? null}
+          creatingKc={creatingKc}
           onSelectMini={setSelectedMiniId}
           onChangeMini={handleMiniChange}
           onAddMini={handleAddMini}

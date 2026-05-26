@@ -1,25 +1,32 @@
 import type { Config } from "@netlify/functions";
 import { insertKc } from "./_shared/db";
 import { error, json } from "./_shared/response";
-import { generateKcFromTitle } from "./kcs";
+import { generateKcFromConditionResponse } from "./kcs";
 
 export default async (req: Request) => {
   try {
     if (req.method !== "POST") return error("Method not allowed", 405);
-    const { title, writerName, grade, topic, kcNumber } = (await req.json()) as {
-      title?: string;
+    const { condition, response, writerName, grade, topic, kcNumber } = (await req.json()) as {
+      condition?: string;
+      response?: string;
       writerName?: string;
       grade?: number;
       topic?: number;
       kcNumber?: number;
     };
-    if (!title || typeof title !== "string") return error("Title is required", 400);
-    const draft = await generateKcFromTitle(title);
+    if (!condition || typeof condition !== "string") return error("Condition is required", 400);
+    if (!response || typeof response !== "string") return error("Response is required", 400);
+    const forced = {
+      condition: condition.trim(),
+      response: response.trim(),
+      grade: Number(grade) || 6,
+      topic: Number(topic) || 1,
+      kcNumber: Number(kcNumber) || 1,
+    };
+    const draft = await generateKcFromConditionResponse(forced);
     return json(await insertKc({
       ...draft,
-      grade: Number(grade) || draft.grade,
-      topic: Number(topic) || draft.topic,
-      kcNumber: Number(kcNumber) || draft.kcNumber,
+      ...forced,
     }, writerName), { status: 201 });
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");

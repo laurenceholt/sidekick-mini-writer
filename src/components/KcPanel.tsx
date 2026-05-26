@@ -1,4 +1,4 @@
-import { BookOpen, FilePlus2, PanelLeftClose, PanelLeftOpen, Sparkles, X } from "lucide-react";
+import { BookOpen, FilePlus2, PanelLeftClose, PanelLeftOpen, Sparkles, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type { KnowledgeComponent, NewKcInput } from "../lib/types";
 
@@ -10,8 +10,11 @@ interface KcPanelProps {
   onSelect: (id: string) => void;
   onChange: (kc: KnowledgeComponent) => void;
   onCreate: (input: NewKcInput) => void;
+  onDelete: (id: string) => void;
   onGenerateMini: () => void;
   onToggleCollapsed: () => void;
+  creatingKc: NewKcInput | null;
+  createError: string | null;
 }
 
 function kcCode(kc: KnowledgeComponent) {
@@ -26,8 +29,11 @@ export function KcPanel({
   onSelect,
   onChange,
   onCreate,
+  onDelete,
   onGenerateMini,
   onToggleCollapsed,
+  creatingKc,
+  createError,
 }: KcPanelProps) {
   const [draftKc, setDraftKc] = useState<NewKcInput | null>(null);
 
@@ -40,10 +46,11 @@ export function KcPanel({
     const grade = selectedKc?.grade ?? 6;
     const topic = selectedKc?.topic ?? 1;
     setDraftKc({
-      title: "",
       grade,
       topic,
       kcNumber: nextKcNumber(grade, topic),
+      condition: "",
+      response: "",
     });
   };
 
@@ -78,6 +85,7 @@ export function KcPanel({
 
       <label className="field-label" htmlFor="kc-select">Previous KCs</label>
       <select id="kc-select" className="select" value={selectedKc?.id ?? ""} onChange={(event) => onSelect(event.target.value)} disabled={!kcs.length}>
+        {!selectedKc && <option value="">No KC selected</option>}
         {!kcs.length && <option value="">No KCs yet</option>}
         {kcs.map((kc) => (
           <option key={kc.id} value={kc.id}>{kcCode(kc)} · {kc.title}</option>
@@ -89,7 +97,23 @@ export function KcPanel({
         Add KC
       </button>
 
-      {!selectedKc && <p className="empty-copy">This writer has no KCs yet. Add a KC to start a blank workspace.</p>}
+      {creatingKc && (
+        <section className="working-kc">
+          <div className="working-spinner" aria-hidden />
+          <p className="eyebrow">Working</p>
+          <h2>Drafting KC {creatingKc.grade}-{creatingKc.topic}-{creatingKc.kcNumber}</h2>
+          <p>Claude is writing the title, worked example, and standards from your condition and response.</p>
+          <div className="working-preview">
+            <strong>Condition</strong>
+            <span>{creatingKc.condition}</span>
+            <strong>Response</strong>
+            <span>{creatingKc.response}</span>
+          </div>
+        </section>
+      )}
+
+      {!selectedKc && !creatingKc && <p className="empty-copy">This writer has no KCs yet. Add a KC to start a blank workspace.</p>}
+      {createError && !creatingKc && <p className="error-copy">{createError}</p>}
 
       {draftKc && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setDraftKc(null)}>
@@ -101,9 +125,10 @@ export function KcPanel({
             onMouseDown={(event) => event.stopPropagation()}
             onSubmit={(event) => {
               event.preventDefault();
-              const title = draftKc.title.trim();
-              if (!title) return;
-              onCreate({ ...draftKc, title });
+              const condition = draftKc.condition.trim();
+              const response = draftKc.response.trim();
+              if (!condition || !response) return;
+              onCreate({ ...draftKc, condition, response });
               setDraftKc(null);
             }}
           >
@@ -117,14 +142,23 @@ export function KcPanel({
               </button>
             </div>
 
-            <label className="field-label" htmlFor="new-kc-title">KC title</label>
-            <input
-              id="new-kc-title"
-              className="input"
+            <label className="field-label" htmlFor="new-kc-condition">Condition</label>
+            <textarea
+              id="new-kc-condition"
+              className="textarea compact"
               autoFocus
-              placeholder="Find the median of a set of values"
-              value={draftKc.title}
-              onChange={(event) => setDraftKc({ ...draftKc, title: event.target.value })}
+              placeholder="Given an equation with numerical expressions on both sides."
+              value={draftKc.condition}
+              onChange={(event) => setDraftKc({ ...draftKc, condition: event.target.value })}
+            />
+
+            <label className="field-label" htmlFor="new-kc-response">Response</label>
+            <textarea
+              id="new-kc-response"
+              className="textarea compact"
+              placeholder="Determine whether the equation is true or false."
+              value={draftKc.response}
+              onChange={(event) => setDraftKc({ ...draftKc, response: event.target.value })}
             />
 
             <div className="grade-grid modal-grid">
@@ -149,7 +183,7 @@ export function KcPanel({
               <button className="secondary-button" type="button" onClick={() => setDraftKc(null)}>
                 Cancel
               </button>
-              <button className="primary-button modal-primary" type="submit" disabled={!draftKc.title.trim()}>
+              <button className="primary-button modal-primary" type="submit" disabled={!draftKc.condition.trim() || !draftKc.response.trim()}>
                 <Sparkles size={17} />
                 Draft KC
               </button>
@@ -158,7 +192,7 @@ export function KcPanel({
         </div>
       )}
 
-      {selectedKc && (
+      {selectedKc && !creatingKc && (
         <>
       <div className="kc-title-row">
         <input
@@ -167,6 +201,9 @@ export function KcPanel({
           onChange={(event) => onChange({ ...selectedKc, title: event.target.value })}
         />
         <div className="id-badge">{kcCode(selectedKc)}</div>
+        <button className="icon-button danger" aria-label="Delete KC" type="button" onClick={() => onDelete(selectedKc.id)}>
+          <Trash2 size={16} />
+        </button>
       </div>
 
       <div className="grade-grid">

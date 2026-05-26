@@ -24,6 +24,7 @@ create table if not exists public.mini_writer_kcs (
   worked_example_md text not null default '',
   standards jsonb not null default '[]'::jsonb,
   notes_md text not null default '',
+  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -59,6 +60,7 @@ create table if not exists public.mini_writer_minis (
   title text not null,
   status text not null default 'not_started' check (status in ('not_started', 'writing', 'ready_for_review', 'done')),
   current_version_id uuid,
+  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (kc_id, mini_index)
@@ -92,6 +94,7 @@ create table if not exists public.mini_writer_mini_versions (
   source text not null check (source in ('seed', 'generate', 'manual', 'agent', 'notes', 'revert')),
   summary text not null default '',
   steps jsonb not null default '[]'::jsonb,
+  deleted_at timestamptz,
   created_at timestamptz not null default now(),
   unique (mini_id, version_number)
 );

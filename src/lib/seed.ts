@@ -33,6 +33,7 @@ export const seedKc: KnowledgeComponent = {
     },
   ],
   notesMd: "Seeded from the attached truth-of-equation KC and student task statement.",
+  deletedAt: null,
   createdAt: now,
   updatedAt: now,
 };

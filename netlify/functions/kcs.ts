@@ -1,6 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { askAnthropicForJson } from "./_shared/ai";
-import { getKc, insertKc, listKcs, updateKc } from "./_shared/db";
+import { getKc, insertKc, listKcs, softDeleteKc, updateKc } from "./_shared/db";
 import { MINI_LESSON_SKILL } from "./_shared/miniLessonSkill";
 import { error, json } from "./_shared/response";
 import type { KnowledgeComponent } from "./_shared/types";
@@ -25,6 +25,10 @@ export default async (req: Request, context: Context) => {
       const body = (await req.json()) as KnowledgeComponent;
       return json(await updateKc({ ...body, id }));
     }
+    if (req.method === "DELETE" && id) {
+      await softDeleteKc(id);
+      return json({ ok: true });
+    }
     return error("Method not allowed", 405);
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");
@@ -35,13 +39,21 @@ export const config: Config = {
   path: ["/api/kcs", "/api/kcs/:id"],
 };
 
-export async function generateKcFromTitle(title: string) {
+export async function generateKcFromConditionResponse(input: { condition: string; response: string; grade: number; topic: number; kcNumber: number }) {
   return askAnthropicForJson<KnowledgeComponent>(
     `You generate concise math knowledge components for grades 3-8. Return only valid JSON.
 
 Use this lesson-writing guidance when choosing examples and standards:
 ${MINI_LESSON_SKILL}`,
-    `Create a knowledge component for this title: ${title}
+    `Create a knowledge component from this condition/response.
+
+Grade: ${input.grade}
+Topic: ${input.topic}
+KC number: ${input.kcNumber}
+Condition: ${input.condition}
+Response: ${input.response}
+
+Generate a short precise title and slug. Keep the condition and response semantically the same, but you may lightly clean wording.
 
 Use this JSON shape:
 {

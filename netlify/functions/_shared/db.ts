@@ -44,6 +44,11 @@ function isMissingTopicSchema(error: any) {
   return message.includes("topic") || message.includes("kc_number") || message.includes("PGRST204") || message.includes("42703");
 }
 
+function isMissingDeletedSchema(error: any) {
+  const message = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return message.includes("deleted_at") || message.includes("PGRST204") || message.includes("42703");
+}
+
 function client() {
   const url = getEnv("SUPABASE_URL");
   const key = getEnv("SUPABASE_SECRET_KEY") ?? getEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -65,6 +70,7 @@ export function toKc(row: Record<string, any>, writerName = DEFAULT_WRITER): Kno
     workedExampleMd: row.worked_example_md,
     standards: row.standards ?? [],
     notesMd: stripLegacyWriterMarker(row.notes_md),
+    deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -108,44 +114,63 @@ function normalizeIncomingKcRow(data: Record<string, any>) {
   return row;
 }
 
+async function runActiveKcQuery(db: SupabaseClient<any>, build: (query: any) => any) {
+  let result = await build(db.from(TABLES.kcs).select("*").is("deleted_at", null));
+  if (result.error && isMissingDeletedSchema(result.error)) {
+    result = await build(db.from(TABLES.kcs).select("*"));
+  }
+  return result;
+}
+
+async function anyKcsExist(db: SupabaseClient<any>) {
+  const { count, error } = await db.from(TABLES.kcs).select("id", { count: "exact", head: true });
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 export async function listKcs(writerName = DEFAULT_WRITER) {
   const db = client();
   const writer = cleanWriterName(writerName);
   if (!db) return writer === DEFAULT_WRITER ? [seedKc] : [];
   if (writer === DEFAULT_WRITER) {
-    const { data, error } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
+    const { data, error } = await runActiveKcQuery(db, (query) => query.order("updated_at", { ascending: false }));
     if (error) throw error;
-    if (data.length) return data.map((row) => toKc(row, DEFAULT_WRITER));
+    if (data.length) return data.map((row: Record<string, any>) => toKc(row, DEFAULT_WRITER));
+    if (await anyKcsExist(db)) return [];
     return [await ensureSeedData(db)];
   }
   const hasWriterSchema = await writerSchemaExists();
   const writerRow = hasWriterSchema ? await ensureWriter(writer) : null;
   if (hasWriterSchema && writerRow) {
-    const { data, error } = await db.from(TABLES.kcs).select("*").eq("writer_id", writerRow.id).order("updated_at", { ascending: false });
+    const { data, error } = await runActiveKcQuery(db, (query) => query.eq("writer_id", writerRow.id).order("updated_at", { ascending: false }));
     if (error) {
       if (!isMissingWriterSchema(error)) throw error;
     } else {
-      if (data.length) return data.map((row) => toKc(row, writer));
+      if (data.length) return data.map((row: Record<string, any>) => toKc(row, writer));
       if (writer !== DEFAULT_WRITER) return [];
-      const { data: legacy, error: legacyError } = await db.from(TABLES.kcs).select("*").is("writer_id", null).order("updated_at", { ascending: false });
+      const { data: legacy, error: legacyError } = await runActiveKcQuery(db, (query) => query.is("writer_id", null).order("updated_at", { ascending: false }));
       if (legacyError) {
         if (!isMissingWriterSchema(legacyError)) throw legacyError;
       } else if (legacy.length) {
-        return legacy.map((row) => toKc(row, DEFAULT_WRITER));
+        return legacy.map((row: Record<string, any>) => toKc(row, DEFAULT_WRITER));
       }
-      const { data: allDefault, error: allDefaultError } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
+      const { data: allDefault, error: allDefaultError } = await runActiveKcQuery(db, (query) => query.order("updated_at", { ascending: false }));
       if (allDefaultError) throw allDefaultError;
-      if (allDefault.length) return allDefault.map((row) => toKc(row, DEFAULT_WRITER));
+      if (allDefault.length) return allDefault.map((row: Record<string, any>) => toKc(row, DEFAULT_WRITER));
+      if (await anyKcsExist(db)) return [];
       return [await ensureSeedData(db)];
     }
   } else if (hasWriterSchema) {
     return [];
   }
   if (writer !== DEFAULT_WRITER) return [];
-  const { data, error } = await db.from(TABLES.kcs).select("*").order("updated_at", { ascending: false });
+  const { data, error } = await runActiveKcQuery(db, (query) => query.order("updated_at", { ascending: false }));
   if (error) throw error;
-  if (!data.length && writer === DEFAULT_WRITER) return [await ensureSeedData(db)];
-  return data.map((row) => toKc(row, writer));
+  if (!data.length && writer === DEFAULT_WRITER) {
+    if (await anyKcsExist(db)) return [];
+    return [await ensureSeedData(db)];
+  }
+  return data.map((row: Record<string, any>) => toKc(row, writer));
 }
 
 export async function listWriters() {
@@ -196,7 +221,12 @@ async function ensureWriter(name: string) {
 export async function getKc(id: string) {
   const db = client();
   if (!db) return id === seedKc.id ? seedKc : null;
-  const { data, error } = await db.from(TABLES.kcs).select("*").eq("id", id).maybeSingle();
+  let { data, error } = await db.from(TABLES.kcs).select("*").eq("id", id).is("deleted_at", null).maybeSingle();
+  if (error && isMissingDeletedSchema(error)) {
+    const fallback = await db.from(TABLES.kcs).select("*").eq("id", id).maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) throw error;
   if (!data && id === seedKc.id) return ensureSeedData(db);
   if (!data) return null;
@@ -253,6 +283,7 @@ function toKcLike(row: Record<string, any>) {
     workedExampleMd: row.worked_example_md,
     standards: row.standards ?? [],
     notesMd: stripLegacyWriterMarker(row.notes_md),
+    deletedAt: row.deleted_at,
   };
 }
 
@@ -267,6 +298,29 @@ export async function updateKc(kc: KnowledgeComponent) {
     data = fallback.data;
   }
   return toKc(data);
+}
+
+export async function softDeleteKc(id: string) {
+  const db = client();
+  if (!db) return;
+  const deletedAt = new Date().toISOString();
+  const { data: minis, error: minisError } = await db.from(TABLES.minis).select("id").eq("kc_id", id);
+  if (minisError) throw minisError;
+  const miniIds = (minis ?? []).map((mini) => mini.id);
+  if (miniIds.length) {
+    const { error: versionsError } = await db.from(TABLES.versions).update({ deleted_at: deletedAt }).in("mini_id", miniIds);
+    if (versionsError && !isMissingDeletedSchema(versionsError)) throw versionsError;
+    const { error: minisUpdateError } = await db.from(TABLES.minis).update({ deleted_at: deletedAt }).in("id", miniIds);
+    if (minisUpdateError) {
+      if (isMissingDeletedSchema(minisUpdateError)) throw new Error("Soft delete needs the deleted_at Supabase migration to be run first.");
+      throw minisUpdateError;
+    }
+  }
+  const { error: kcError } = await db.from(TABLES.kcs).update({ deleted_at: deletedAt }).eq("id", id);
+  if (kcError) {
+    if (isMissingDeletedSchema(kcError)) throw new Error("Soft delete needs the deleted_at Supabase migration to be run first.");
+    throw kcError;
+  }
 }
 
 function toVersion(row: Record<string, any>): MiniVersion {
@@ -292,33 +346,55 @@ function toMini(row: Record<string, any>, versions: MiniVersion[]): Mini {
     currentVersionId: row.current_version_id,
     steps: current?.steps ?? [],
     versions,
+    deletedAt: row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
+async function runActiveMiniQuery(db: SupabaseClient<any>, build: (query: any) => any) {
+  let result = await build(db.from(TABLES.minis).select("*").is("deleted_at", null));
+  if (result.error && isMissingDeletedSchema(result.error)) {
+    result = await build(db.from(TABLES.minis).select("*"));
+  }
+  return result;
+}
+
+async function runActiveVersionQuery(db: SupabaseClient<any>, build: (query: any) => any) {
+  let result = await build(db.from(TABLES.versions).select("*").is("deleted_at", null));
+  if (result.error && isMissingDeletedSchema(result.error)) {
+    result = await build(db.from(TABLES.versions).select("*"));
+  }
+  return result;
+}
+
 export async function listMinis(kcId: string) {
   const db = client();
   if (!db) return kcId === seedKc.id ? [seedMini] : [];
-  const { data: minis, error } = await db.from(TABLES.minis).select("*").eq("kc_id", kcId).order("mini_index");
+  const { data: minis, error } = await runActiveMiniQuery(db, (query) => query.eq("kc_id", kcId).order("mini_index"));
   if (error) throw error;
   if (!minis.length && kcId === seedKc.id) {
     await ensureSeedData(db);
     return [seedMini];
   }
   if (!minis.length) return [];
-  const miniIds = minis.map((mini) => mini.id);
-  const { data: versions, error: versionError } = await db.from(TABLES.versions).select("*").in("mini_id", miniIds).order("version_number");
+  const miniIds = minis.map((mini: Record<string, any>) => mini.id);
+  const { data: versions, error: versionError } = await runActiveVersionQuery(db, (query) => query.in("mini_id", miniIds).order("version_number"));
   if (versionError) throw versionError;
-  return minis.map((mini) => toMini(mini, (versions ?? []).filter((version) => version.mini_id === mini.id).map(toVersion)));
+  return minis.map((mini: Record<string, any>) => toMini(mini, (versions ?? []).filter((version: Record<string, any>) => version.mini_id === mini.id).map(toVersion)));
 }
 
 export async function getMini(id: string) {
   const db = client();
   if (!db) return id === seedMini.id ? seedMini : null;
-  const { data: mini, error } = await db.from(TABLES.minis).select("*").eq("id", id).single();
+  let { data: mini, error } = await db.from(TABLES.minis).select("*").eq("id", id).is("deleted_at", null).single();
+  if (error && isMissingDeletedSchema(error)) {
+    const fallback = await db.from(TABLES.minis).select("*").eq("id", id).single();
+    mini = fallback.data;
+    error = fallback.error;
+  }
   if (error) throw error;
-  const { data: versions, error: versionError } = await db.from(TABLES.versions).select("*").eq("mini_id", id).order("version_number");
+  const { data: versions, error: versionError } = await runActiveVersionQuery(db, (query) => query.eq("mini_id", id).order("version_number"));
   if (versionError) throw versionError;
   return toMini(mini, (versions ?? []).map(toVersion));
 }
@@ -417,7 +493,7 @@ export async function createVersion(miniId: string, steps: MiniStep[], source: s
 async function listVersionsForMini(miniId: string) {
   const db = client();
   if (!db) return [];
-  const { data, error } = await db.from(TABLES.versions).select("*").eq("mini_id", miniId).order("version_number");
+  const { data, error } = await runActiveVersionQuery(db, (query) => query.eq("mini_id", miniId).order("version_number"));
   if (error) throw error;
   return (data ?? []).map(toVersion);
 }

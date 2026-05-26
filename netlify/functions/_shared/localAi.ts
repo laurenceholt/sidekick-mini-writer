@@ -15,6 +15,7 @@ export function fallbackKc(title: string) {
       "Substitute the given value and compare both sides.\n\nFor 0.4x = 20 when x = 15: 0.4 x 15 = 6, and 6 is not equal to 20, so the equation is false.",
     standards: standardsForTitle(title),
     notes_md: "",
+    deleted_at: null,
   };
 }
 

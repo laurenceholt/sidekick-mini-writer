@@ -101,6 +101,7 @@ export const api = {
   listAgentMessages: (kcId: string) => request<AgentMessage[]>(`/api/agent-messages?kcId=${encodeURIComponent(kcId)}`),
   createKc: (input: NewKcInput, writerName: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ ...input, writerName }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
+  deleteKc: (kcId: string) => request<{ ok: true }>(`/api/kcs/${kcId}`, { method: "DELETE" }),
   generateMini: (kcId: string) => request<GenerateMiniResult>("/api/generate-mini", { method: "POST", body: JSON.stringify({ kcId }) }),
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),
   reviseMini: async (miniId: string, prompt: string, history: AgentMessage[]) => {

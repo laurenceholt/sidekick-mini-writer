@@ -20,15 +20,17 @@ export interface KnowledgeComponent {
   workedExampleMd: string;
   standards: Standard[];
   notesMd: string;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface NewKcInput {
-  title: string;
   grade: number;
   topic: number;
   kcNumber: number;
+  condition: string;
+  response: string;
 }
 
 export interface MiniStep {
@@ -60,6 +62,7 @@ export interface Mini {
   currentVersionId: string;
   steps: MiniStep[];
   versions: MiniVersion[];
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

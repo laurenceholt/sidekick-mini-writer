@@ -19,6 +19,7 @@ export function generateKcDraft(title: string): KnowledgeComponent {
       "Substitute the given value and compare both sides.\n\nFor 0.4x = 20 when x = 15: 0.4 x 15 = 6, and 6 is not equal to 20, so the equation is false.",
     standards,
     notesMd: "",
+    deletedAt: null,
     createdAt,
     updatedAt: createdAt,
   };

@@ -20,6 +20,7 @@ export interface KnowledgeComponent {
   workedExampleMd: string;
   standards: Standard[];
   notesMd: string;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +54,7 @@ export interface Mini {
   currentVersionId: string;
   steps: MiniStep[];
   versions: MiniVersion[];
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
