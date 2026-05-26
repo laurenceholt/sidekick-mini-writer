@@ -1,4 +1,4 @@
-import type { Config } from "@netlify/functions";
+import type { Config, Context } from "@netlify/functions";
 import { getKc } from "./_shared/db";
 import { createGenerateRequestId, ensureMiniGenerationStarted, getMiniGenerationStatus, runMiniGeneration } from "./_shared/generateMini";
 import { error, json } from "./_shared/response";
@@ -17,7 +17,7 @@ async function startBackgroundGeneration(req: Request, kcId: string, requestId: 
   });
 }
 
-export default async (req: Request) => {
+export default async (req: Request, context: Context) => {
   try {
     if (req.method === "GET") {
       const url = new URL(req.url);
@@ -41,7 +41,7 @@ export default async (req: Request) => {
     if (!started) {
       return json(await runMiniGeneration(kc, requestId), { status: 201 });
     }
-    await startBackgroundGeneration(req, kc.id, requestId);
+    context.waitUntil(startBackgroundGeneration(req, kc.id, requestId));
     return json({ pending: true, requestId }, { status: 202 });
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");

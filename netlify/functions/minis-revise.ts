@@ -38,7 +38,7 @@ export default async (req: Request, context: Context) => {
 
     const body = { prompt, history, requestId };
     await ensureRevisionStarted(mini, prompt, history, requestId);
-    await startBackgroundRevision(req, mini.id, body);
+    context.waitUntil(startBackgroundRevision(req, mini.id, body));
     return json({ pending: true, requestId }, { status: 202 });
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");

@@ -58,10 +58,11 @@ function parseRevisionResponse(text: string, originalSteps: MiniStep[]): Revisio
       summary: parsed.summary || (parsed.updateMini ? "Agent revision." : "No mini changes."),
     };
   }
+  const extractedResponse = extractMalformedResponse(cleaned);
   return {
     updateMini: false,
     steps: originalSteps,
-    response: cleaned || "I could not format a response, but I did not change the mini.",
+    response: extractedResponse || cleanJsonLeak(cleaned) || "I could not format a response, but I did not change the mini.",
     summary: "No mini changes.",
   };
 }
@@ -85,6 +86,47 @@ function parseCandidate(candidate: string): RevisionResult | null {
   } catch {
     return null;
   }
+}
+
+function extractMalformedResponse(text: string) {
+  const keyIndex = text.lastIndexOf('"response"');
+  if (keyIndex < 0) return null;
+  const colonIndex = text.indexOf(":", keyIndex);
+  const startQuote = text.indexOf('"', colonIndex + 1);
+  if (colonIndex < 0 || startQuote < 0) return null;
+
+  let escaped = false;
+  for (let index = startQuote + 1; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char !== '"') continue;
+    const tail = text.slice(index + 1);
+    if (!/^\s*,\s*"summary"/.test(tail) && !/^\s*}\s*`{0,3}\s*$/.test(tail)) continue;
+
+    const raw = text.slice(startQuote + 1, index);
+    try {
+      const parsed = JSON.parse(`"${raw}"`) as string;
+      return parsed.trim();
+    } catch {
+      return raw.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\").trim();
+    }
+  }
+  return null;
+}
+
+function cleanJsonLeak(text: string) {
+  return text
+    .replace(/```json[\s\S]*?```/gi, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\{[\s\S]*"updateMini"[\s\S]*$/i, "")
+    .trim();
 }
 
 function extractJsonObjects(text: string) {
