@@ -27,6 +27,10 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function formatDuration(ms) {
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 function requestId() {
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -133,28 +137,33 @@ console.log(`Agent hardening target: ${kc.grade}-${kc.topic}-${kc.kcNumber} · $
 console.log(`Endpoint: ${baseUrl}`);
 
 const results = [];
+const runStartedAt = Date.now();
 for (const [index, prompt] of prompts.entries()) {
   const label = `${index + 1}/${prompts.length}`;
+  const promptStartedAt = Date.now();
   process.stdout.write(`Running ${label}... `);
   try {
     const result = await runPrompt(mini, prompt, index + 1);
-    results.push({ ...result, passed: true });
-    console.log("PASS");
+    const elapsedMs = Date.now() - promptStartedAt;
+    results.push({ ...result, passed: true, elapsedMs });
+    console.log(`PASS ${formatDuration(elapsedMs)}`);
   } catch (error) {
+    const elapsedMs = Date.now() - promptStartedAt;
     const message = error instanceof Error ? error.message : String(error);
-    results.push({ index: index + 1, prompt, passed: false, error: message });
-    console.log("FAIL");
+    results.push({ index: index + 1, prompt, passed: false, error: message, elapsedMs });
+    console.log(`FAIL ${formatDuration(elapsedMs)}`);
     console.error(message);
   }
 }
 
 const passed = results.filter((result) => result.passed).length;
-console.log(`\nResult: ${passed}/${prompts.length} passed`);
+const totalElapsedMs = Date.now() - runStartedAt;
+console.log(`\nResult: ${passed}/${prompts.length} passed in ${formatDuration(totalElapsedMs)}`);
 for (const result of results) {
   if (result.passed) {
-    console.log(`PASS ${result.index}: ${result.responsePreview}`);
+    console.log(`PASS ${result.index} ${formatDuration(result.elapsedMs)}: ${result.responsePreview}`);
   } else {
-    console.log(`FAIL ${result.index}: ${result.error}`);
+    console.log(`FAIL ${result.index} ${formatDuration(result.elapsedMs)}: ${result.error}`);
   }
 }
 
