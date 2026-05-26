@@ -72,12 +72,22 @@ function leaksRawJson(response) {
   return /```json|"\s*updateMini\s*"|"\s*steps\s*"\s*:\s*\[|"\s*summary\s*"\s*:/i.test(response);
 }
 
-function validateAgentResult(result, prompt) {
+function normalizeSteps(steps) {
+  return JSON.stringify(steps ?? []);
+}
+
+function validateAgentResult(result, originalMini) {
   if (!result || typeof result !== "object") throw new Error("Response was not JSON.");
   if (!result.mini || typeof result.mini.id !== "string") throw new Error("Missing mini object.");
   if (typeof result.response !== "string" || !result.response.trim()) throw new Error("Missing agent response text.");
   if (looksLikeErrorMessage(result.response)) throw new Error(`Agent returned an error message: ${result.response.slice(0, 180)}`);
   if (leaksRawJson(result.response)) throw new Error(`Agent leaked raw JSON: ${result.response.slice(0, 180)}`);
+  if (result.mini.currentVersionId !== originalMini.currentVersionId) {
+    throw new Error("Agent created a new mini version for a no-update prompt.");
+  }
+  if (normalizeSteps(result.mini.steps) !== normalizeSteps(originalMini.steps)) {
+    throw new Error("Agent changed mini steps for a no-update prompt.");
+  }
 }
 
 async function findTargetMini() {
@@ -103,14 +113,14 @@ async function pollRevision(miniId, id) {
   throw new Error(`Timed out after ${Math.round(TIMEOUT_MS / 1000)} seconds.`);
 }
 
-async function runPrompt(miniId, prompt, index) {
+async function runPrompt(originalMini, prompt, index) {
   const id = requestId();
-  const started = await request(`/api/minis/${miniId}/revise`, {
+  const started = await request(`/api/minis/${originalMini.id}/revise`, {
     method: "POST",
     body: JSON.stringify({ requestId: id, prompt, history: [] }),
   });
-  const result = started?.pending ? await pollRevision(miniId, started.requestId) : started;
-  validateAgentResult(result, prompt);
+  const result = started?.pending ? await pollRevision(originalMini.id, started.requestId) : started;
+  validateAgentResult(result, originalMini);
   return {
     index,
     prompt,
@@ -127,7 +137,7 @@ for (const [index, prompt] of prompts.entries()) {
   const label = `${index + 1}/${prompts.length}`;
   process.stdout.write(`Running ${label}... `);
   try {
-    const result = await runPrompt(mini.id, prompt, index + 1);
+    const result = await runPrompt(mini, prompt, index + 1);
     results.push({ ...result, passed: true });
     console.log("PASS");
   } catch (error) {
