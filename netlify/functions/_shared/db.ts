@@ -594,6 +594,22 @@ export async function findFeedbackByKcRequestId(kcId: string, requestId: string)
   return data;
 }
 
+export async function findPendingMiniGenerationByKc(kcId: string) {
+  const db = client();
+  if (!db) return null;
+  const { data, error } = await db
+    .from(TABLES.feedback)
+    .select("*")
+    .eq("kc_id", kcId)
+    .eq("event_type", "generate_mini")
+    .filter("payload->>status", "eq", "started")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 function extractJsonObjects(text: string) {
   const objects: string[] = [];
   for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {

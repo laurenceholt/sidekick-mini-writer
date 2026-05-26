@@ -11,5 +11,7 @@ export default async (req: Request) => {
   if (!kcId || !requestId) return;
   const kc = await getKc(kcId);
   if (!kc) return;
-  await runMiniGeneration(kc, requestId);
+  await runMiniGeneration(kc, requestId).catch((error) => {
+    console.error("Mini generation failed", error);
+  });
 };

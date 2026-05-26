@@ -1,6 +1,6 @@
 import type { Config, Context } from "@netlify/functions";
 import { getKc } from "./_shared/db";
-import { createGenerateRequestId, ensureMiniGenerationStarted, getMiniGenerationStatus, runMiniGeneration } from "./_shared/generateMini";
+import { createGenerateRequestId, ensureMiniGenerationStarted, getActiveMiniGenerationStatus, getMiniGenerationStatus, runMiniGeneration } from "./_shared/generateMini";
 import { error, json } from "./_shared/response";
 
 type GenerateMiniRequest = {
@@ -24,7 +24,7 @@ export default async (req: Request, context: Context) => {
       const kcId = url.searchParams.get("kcId");
       const requestId = url.searchParams.get("requestId");
       if (!kcId) return error("kcId is required", 400);
-      if (!requestId) return error("requestId is required", 400);
+      if (!requestId) return json(await getActiveMiniGenerationStatus(kcId));
       const status = await getMiniGenerationStatus(kcId, requestId);
       return status ? json(status) : error("Mini generation request not found", 404);
     }
@@ -35,7 +35,10 @@ export default async (req: Request, context: Context) => {
     if (!kc) return error("KC not found", 404);
 
     const existing = await getMiniGenerationStatus(kc.id, requestId);
-    if (existing) return json(existing, { status: existing.pending ? 202 : 200 });
+    if (existing) return json(existing, { status: "pending" in existing && existing.pending ? 202 : 200 });
+
+    const active = await getActiveMiniGenerationStatus(kc.id);
+    if (active && "pending" in active && active.pending) return json(active, { status: 202 });
 
     const started = await ensureMiniGenerationStarted(kc, requestId);
     if (!started) {

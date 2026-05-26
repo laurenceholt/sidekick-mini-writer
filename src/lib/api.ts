@@ -16,6 +16,12 @@ type PendingRequest = {
   requestId: string;
 };
 
+type FailedRequest = {
+  failed: true;
+  requestId: string;
+  error: string;
+};
+
 type RequestOptions = RequestInit & {
   networkRetries?: number;
 };
@@ -67,8 +73,12 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
   throw new Error(`Request failed: ${path}`);
 }
 
-function isPendingRequest(value: RevisionResult | GenerateMiniResult | PendingRequest): value is PendingRequest {
-  return "pending" in value && value.pending;
+function isPendingRequest(value: RevisionResult | GenerateMiniResult | PendingRequest | FailedRequest | null): value is PendingRequest {
+  return Boolean(value && "pending" in value && value.pending);
+}
+
+function isFailedRequest(value: RevisionResult | GenerateMiniResult | PendingRequest | FailedRequest | null): value is FailedRequest {
+  return Boolean(value && "failed" in value && value.failed);
 }
 
 async function pollRevision(miniId: string, id: string): Promise<RevisionResult> {
@@ -86,15 +96,16 @@ async function pollRevision(miniId: string, id: string): Promise<RevisionResult>
 
 async function pollMiniGeneration(kcId: string, id: string): Promise<GenerateMiniResult> {
   const startedAt = Date.now();
-  while (Date.now() - startedAt < 180_000) {
+  while (Date.now() - startedAt < 14 * 60_000) {
     await wait(2_000);
-    const status = await request<GenerateMiniResult | PendingRequest>(
+    const status = await request<GenerateMiniResult | PendingRequest | FailedRequest>(
       `/api/generate-mini-status?kcId=${encodeURIComponent(kcId)}&requestId=${encodeURIComponent(id)}`,
       { networkRetries: 2 },
     );
+    if (isFailedRequest(status)) throw new Error(status.error);
     if (!isPendingRequest(status)) return status;
   }
-  throw new Error("Claude is still generating. Try Generate Mini again in a moment.");
+  throw new Error("Claude is still generating. Refresh this KC to reconnect to the pending job.");
 }
 
 export async function fetchWorkspace(writerName: string): Promise<WorkspaceData> {
@@ -115,13 +126,17 @@ export const api = {
   createKc: (input: NewKcInput, writerName: string) => request<KnowledgeComponent>("/api/generate-kc", { method: "POST", body: JSON.stringify({ ...input, writerName }) }),
   updateKc: (kc: KnowledgeComponent) => request<KnowledgeComponent>(`/api/kcs/${kc.id}`, { method: "PATCH", body: JSON.stringify(kc) }),
   deleteKc: (kcId: string) => request<{ ok: true }>(`/api/kcs/${kcId}`, { method: "DELETE" }),
+  getActiveMiniGeneration: (kcId: string) =>
+    request<PendingRequest | FailedRequest | null>(`/api/generate-mini-status?kcId=${encodeURIComponent(kcId)}`, { networkRetries: 2 }),
+  waitForMiniGeneration: pollMiniGeneration,
   generateMini: async (kcId: string) => {
     const id = requestId();
-    const started = await request<GenerateMiniResult | PendingRequest>("/api/generate-mini", {
+    const started = await request<GenerateMiniResult | PendingRequest | FailedRequest>("/api/generate-mini", {
       method: "POST",
       networkRetries: 1,
       body: JSON.stringify({ kcId, requestId: id }),
     });
+    if (isFailedRequest(started)) throw new Error(started.error);
     return isPendingRequest(started) ? pollMiniGeneration(kcId, started.requestId) : started;
   },
   updateMini: (mini: Mini) => request<Mini>(`/api/minis/${mini.id}`, { method: "PATCH", body: JSON.stringify(mini) }),

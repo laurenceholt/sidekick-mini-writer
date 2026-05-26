@@ -209,6 +209,28 @@ export default function App() {
     });
   };
 
+  const finishMiniGeneration = async (kcId: string, requestId: string) => {
+    if (generatingMiniRef.current === kcId) return;
+    generatingMiniRef.current = kcId;
+    setGeneratingMiniKcId(kcId);
+    setAgentBusyLabel("Generating mini...");
+    try {
+      const { mini, response } = await api.waitForMiniGeneration(kcId, requestId);
+      updateWorkspace((data) => ({
+        ...data,
+        minis: data.minis.some((item) => item.id === mini.id) ? data.minis.map((item) => (item.id === mini.id ? mini : item)) : [...data.minis, mini],
+      }));
+      setSelectedMiniId(mini.id);
+      appendKcMessage("agent", response, kcId);
+    } catch (err) {
+      appendKcMessage("agent", `I couldn't ask Claude to generate a mini: ${errorMessage(err)}`, kcId);
+    } finally {
+      generatingMiniRef.current = null;
+      setGeneratingMiniKcId(null);
+      setAgentBusyLabel(null);
+    }
+  };
+
   const updateWorkspace = (updater: (data: WorkspaceData) => WorkspaceData) => {
     setWorkspace((current) => {
       const next = updater(current);
@@ -295,6 +317,18 @@ export default function App() {
       setAgentBusyLabel(null);
     }
   };
+
+  useEffect(() => {
+    if (!selectedKc?.id || generatingMiniRef.current) return;
+    let active = true;
+    api.getActiveMiniGeneration(selectedKc.id).then((status) => {
+      if (!active || !status || !("pending" in status) || !status.pending) return;
+      void finishMiniGeneration(selectedKc.id, status.requestId);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [selectedKc?.id]);
 
   const handleMiniChange = (mini: Mini, snapshot = false) => {
     const baseMini = mini.status === "not_started" && (mini.steps.length > 0 || mini.title.trim()) ? { ...mini, status: "writing" as const } : mini;
