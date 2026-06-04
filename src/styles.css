@@ -1,7 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&family=Quicksand:wght@600;700&display=swap");
 @import "tailwindcss";
 
 :root {
+  --font-body: "Open Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: "Quicksand", "Open Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --minis-ink: #18140f;
   --minis-cream: #f6f4ef;
   --minis-paper: #ece7dc;
@@ -16,7 +18,7 @@
   --focus: rgb(45 190 96 / 18%);
   color: var(--minis-ink);
   background: #f0eee9;
-  font-family: "Nunito", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -87,6 +89,7 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  font-family: var(--font-heading);
   border: 1px solid color-mix(in srgb, var(--minis-mustard) 35%, var(--border));
   border-radius: 12px;
   background: #fffefa;
@@ -100,6 +103,7 @@ button:disabled {
 }
 
 .writer-switcher select {
+  font-family: var(--font-heading);
   min-width: 150px;
   min-height: 32px;
   border: 1px solid color-mix(in srgb, var(--minis-green) 30%, var(--border));
@@ -144,9 +148,9 @@ button:disabled {
 
 .minis-wordmark {
   display: inline-block;
-  font-family: "Nunito", system-ui, -apple-system, sans-serif;
-  font-weight: 900;
-  letter-spacing: -0.03em;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: 0;
   line-height: 1;
   white-space: nowrap;
 }
@@ -252,8 +256,9 @@ button:disabled {
 
 h1,
 h2 {
+  font-family: var(--font-heading);
   margin: 0;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -267,6 +272,7 @@ h2 {
 }
 
 .eyebrow {
+  font-family: var(--font-heading);
   margin: 0 0 4px;
   color: var(--muted);
   font-size: 10px;
@@ -277,6 +283,7 @@ h2 {
 
 .save-state,
 .id-badge {
+  font-family: var(--font-heading);
   border-radius: 999px;
   background: rgb(45 190 96 / 10%);
   color: #1e7f43;
@@ -297,6 +304,7 @@ h2 {
 
 .field-label,
 .mini-field span {
+  font-family: var(--font-heading);
   display: block;
   margin: 11px 0 5px;
   color: var(--muted);
@@ -502,6 +510,7 @@ h2 {
 
 .collapsed-label,
 .collapsed-id {
+  font-family: var(--font-heading);
   writing-mode: vertical-rl;
   text-orientation: mixed;
   white-space: nowrap;
@@ -541,8 +550,9 @@ h2 {
 
 .title-input,
 .mini-title-input {
+  font-family: var(--font-heading);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .mini-title-input:disabled,
@@ -581,6 +591,7 @@ h2 {
 }
 
 .section-title {
+  font-family: var(--font-heading);
   gap: 7px;
   margin: 14px 0 7px;
   color: var(--muted-strong);
@@ -617,11 +628,13 @@ h2 {
 }
 
 .standard-pill strong {
+  font-family: var(--font-heading);
   color: #1f8f4e;
   font-size: 12px;
 }
 
 .standard-pill span {
+  font-family: var(--font-heading);
   color: var(--muted-strong);
   font-size: 12px;
   font-weight: 900;
@@ -636,6 +649,7 @@ h2 {
 
 .primary-button,
 .secondary-button {
+  font-family: var(--font-heading);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -711,6 +725,7 @@ h2 {
 }
 
 .version-select-label {
+  font-family: var(--font-heading);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -722,6 +737,7 @@ h2 {
 }
 
 .version-select {
+  font-family: var(--font-heading);
   width: min(320px, 30vw);
   min-height: 34px;
   border: 1px solid var(--border);
@@ -767,6 +783,7 @@ h2 {
 }
 
 .status-select-label {
+  font-family: var(--font-heading);
   display: inline-flex;
   flex-direction: column;
   gap: 3px;
@@ -778,6 +795,7 @@ h2 {
 }
 
 .status-select {
+  font-family: var(--font-heading);
   min-width: 142px;
   min-height: 34px;
   border: 1px solid var(--border);
@@ -815,6 +833,7 @@ h2 {
 }
 
 .mini-tab {
+  font-family: var(--font-heading);
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fffefa;
@@ -842,6 +861,7 @@ h2 {
 }
 
 .step-table th {
+  font-family: var(--font-heading);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -910,6 +930,7 @@ h2 {
 }
 
 .step-id {
+  font-family: var(--font-heading);
   width: 92px;
   color: var(--muted-strong);
   font-size: 12px;
@@ -942,6 +963,7 @@ h2 {
 }
 
 .target-row {
+  font-family: var(--font-heading);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1075,6 +1097,7 @@ h2 {
 }
 
 .agent-working {
+  font-family: var(--font-heading);
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
@@ -1125,6 +1148,7 @@ h2 {
 }
 
 .send-button {
+  font-family: var(--font-heading);
   display: inline-grid;
   width: 38px;
   height: 38px;
@@ -1142,6 +1166,7 @@ h2 {
 }
 
 .deploy-marker {
+  font-family: var(--font-heading);
   position: fixed;
   left: 10px;
   bottom: 8px;
