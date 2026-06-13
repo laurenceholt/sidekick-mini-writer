@@ -1,114 +1,140 @@
-# Mini Writer Chat Panel Agent Guide
+# Generic Lesson Writer Chat Panel Guide
 
-Use this guide when asking another coding agent to recreate the `mini-writer` chat panel: a right-side revision agent for editing or discussing one selected mini lesson.
+Use this guide to ask another coding agent to build a reusable chat panel alongside a lesson-writing interface. The panel is a revision/planning assistant for a selected lesson artifact in a separate lesson-writing app.
 
-## What To Send The Agent
+## What Context To Send The Agent
 
-Send the agent these files or equivalent context:
+Send enough context for the agent to understand four things:
 
-- `src/components/AgentPanel.tsx` for the chat UI shape.
-- `src/App.tsx` sections for `messages`, `agentBusyLabel`, `appendKcMessage`, `handleAgentSend`, `handleProcessNotes`, and `replaceMini`.
-- `src/lib/api.ts` for browser API calls, polling, retries, and request IDs.
-- `netlify/functions/minis-revise.ts` and `netlify/functions/minis-revise-background.ts` for the background request pattern.
-- `netlify/functions/_shared/reviseAgent.ts` for the Claude prompt, JSON contract, parser, and version creation.
-- `netlify/functions/_shared/db.ts` functions for `logFeedback`, `updateFeedbackLog`, `listAgentMessages`, `findFeedbackByRequestId`, `getMini`, and `replaceMiniSteps`.
-- `SKILL.md` or `netlify/functions/_shared/miniLessonSkill.ts`; this is the domain skill the agent must follow when revising minis.
+1. The selected lesson artifact shape.
+2. How edits are saved and versioned.
+3. What domain guidance the assistant should follow.
+4. Where chat messages and feedback logs should be stored.
 
-Also tell the agent the main data types:
+Useful context to provide:
+
+- The UI component or layout where the chat panel should live.
+- The selected lesson artifact type, such as a lesson, activity, slide sequence, step table, problem set, or teacher guide section.
+- The app's existing save/version model.
+- The app's API style and deployment target.
+- The app's domain instructions or skill file.
+- A sample completed lesson artifact.
+- A sample writer request and expected agent response.
+
+Ask the receiving agent to inspect analogous files in its own codebase before implementing: the editor shell, current save/version APIs, existing message or comment components, server route conventions, and any model-calling utilities.
+
+## Generic Data Types
+
+Adapt these names to the target app.
 
 ```ts
-type AgentMessage = {
+type ChatMessage = {
   id: string;
   role: "writer" | "agent";
   content: string;
   createdAt: string;
 };
 
-type MiniStep = {
+type LessonPart = {
   id: string;
-  instruction: string;
-  interaction: string;
-  targetResponse: string;
-  hint: string;
+  title?: string;
+  body?: string;
+  prompt?: string;
+  interaction?: string;
+  targetResponse?: string;
+  hint?: string;
   writerNotes?: string;
-  agentNotes: string;
+  agentNotes?: string;
 };
 
-type Mini = {
+type LessonArtifact = {
   id: string;
-  kcId: string;
-  miniIndex: number;
+  parentId?: string;
   title: string;
-  status: "not_started" | "writing" | "ready_for_review" | "done";
-  currentVersionId: string;
-  steps: MiniStep[];
-  versions: MiniVersion[];
+  status?: "not_started" | "writing" | "ready_for_review" | "done";
+  currentVersionId?: string;
+  parts: LessonPart[];
+  versions?: LessonVersion[];
+};
+
+type AgentRevisionResult = {
+  updateArtifact: boolean;
+  artifact: LessonArtifact;
+  response: string;
+  summary: string;
 };
 ```
+
+If the target app does not have `parts`, use whatever unit is editable: slides, cards, sections, pages, rows, scenes, questions, blocks, or document spans.
 
 ## Copyable Prompt For Another Coding Agent
 
 ```text
-Build a right-side chat panel for a lesson-authoring app.
+Build a right-side chat panel for a lesson-writing app.
 
-The panel is for a "revision agent" that helps a writer revise or discuss a selected mini lesson. It should:
+The panel is for a revision/planning agent that helps a writer discuss or revise the currently selected lesson artifact.
 
-1. Show a compact header: eyebrow "Revision agent", title "Agent", and a message icon.
-2. Show a scrollable chat log.
-3. Render writer messages and agent messages with different bubble styles.
-4. Render markdown in messages, including bold, paragraphs, lists, inline code, and line breaks.
-5. Show empty-state text: "Ask for revisions, ideas, or type “process notes”."
-6. Show a working indicator while the agent is running. The first label should be "Thinking..." and the app may cycle through other short labels.
-7. Keep the text-entry area fixed at the bottom of the panel.
-8. Use one 4-line textarea for all writer requests. Do not create separate "chat" and "agent notes" request boxes.
-9. Use a small send-icon button.
-10. Disable the panel when there is no selected mini, when the selected mini status is Done, or while a request is running.
-11. When disabled because the mini is Done, use this placeholder/reason: "Mini is Done. Change status back to Writing to edit."
+UI requirements:
 
-Implement the server side with a background-job pattern:
+1. Place the panel alongside the editor, usually on the right.
+2. Show a compact header with an eyebrow such as "Revision agent", title "Agent", and a message icon.
+3. Show a scrollable chat log.
+4. Render writer and agent messages with visually distinct bubble styles.
+5. Render markdown in messages: paragraphs, bold, numbered lists, bullet lists, inline code, and line breaks.
+6. Show empty-state text such as "Ask for revisions, ideas, or feedback."
+7. Show a working indicator while the agent is running. Start with "Thinking..." and optionally cycle through other short status labels.
+8. Keep the text-entry area fixed at the bottom of the panel.
+9. Use one textarea for all writer requests. Do not create separate request boxes unless the product has a clear workflow reason.
+10. Use a small send-icon button.
+11. Disable the panel when there is no selected artifact, when the selected artifact is locked/done, or while a request is running.
 
-- Browser POSTs to `/api/minis/:id/revise` with `{ requestId, prompt, history }`.
-- Server creates a `feedback_log` row with status `started`, then starts a Netlify background function.
-- Browser receives `{ pending: true, requestId }` quickly and polls `/api/minis/:id/revise-status?requestId=...`.
-- Background function calls Claude, stores completed result in the same feedback row, and creates a mini version only if the mini changed.
-- Browser stops polling when it receives `{ mini, response }`.
+Server/API requirements:
 
-Use Claude through the Anthropic Messages API. The model can be configured with `ANTHROPIC_MODEL`, defaulting to an Opus model. The key must stay server-side in `ANTHROPIC_API_KEY`.
+1. Keep model and database secrets server-side.
+2. Browser sends a request with `{ requestId, prompt, history }`.
+3. Server logs the request with status `started`.
+4. Server starts model work in a background job or another long-running worker.
+5. Browser receives `{ pending: true, requestId }` quickly.
+6. Browser polls a status endpoint until it receives `{ artifact, response }` or a failure.
+7. Background work updates the feedback log to `completed` or `failed`.
+8. Create a new artifact version only if the agent actually changed the artifact.
+9. Show only the agent's user-facing `response` in the chat, never raw model JSON.
 
-Claude must return only JSON:
+Model requirements:
+
+Use Claude through the Anthropic Messages API, or another model API with equivalent structured-output behavior. The model key must stay server-side.
+
+Ask the model to return JSON with this shape:
 
 {
-  "updateMini": boolean,
-  "steps": MiniStep[],
-  "response": "short response to writer",
+  "updateArtifact": boolean,
+  "artifact": LessonArtifact,
+  "response": "short response to the writer",
   "summary": "version history summary"
 }
 
-Important behavior:
+Decision rules:
 
-- If the writer asks for ideas, critique, explanation, options, clarification, or planning, do not update the mini. Set `updateMini` to false, return the original steps unchanged, and offer to make a change if the writer chooses an option.
-- If the writer clearly asks to revise, use, apply, change, shorten, rewrite, add, remove, or otherwise alter the mini, set `updateMini` to true and return updated steps.
-- Use recent chat history to resolve follow-ups like "use idea #4".
-- When the writer asks for ideas or options, respond with a numbered list and concrete examples.
-- Format the user-facing response as short paragraphs/lists, not one long block.
-- Treat `writerNotes` as the writer's per-step requests.
-- Treat `agentNotes` as the agent's brief status/rationale field.
-- If processing `writerNotes`, clear processed `writerNotes` and append a short `**Done:** ...` note to `agentNotes`.
-- Do not use `agentNotes` for new writer requests.
-- Preserve step IDs and target responses unless the request explicitly changes them.
-- If `updateMini` is false, `steps` must be exactly the original steps and `summary` should be "No mini changes."
+- If the writer asks for ideas, critique, explanation, options, clarification, or planning, do not update the artifact. Set `updateArtifact` to false, return the original artifact unchanged, and offer to make a change if the writer chooses an option.
+- If the writer clearly asks to revise, apply, change, shorten, rewrite, add, remove, or otherwise alter the artifact, set `updateArtifact` to true and return the updated artifact.
+- Use recent chat history to resolve follow-ups such as "use idea #4".
+- When the writer asks for ideas/options, respond with a numbered list and concrete examples.
+- Format the user-facing response as short paragraphs and lists, not one long block.
+- Treat writer comments or inline annotations as requests from the writer.
+- Treat any agent status/rationale field as the agent's brief completion note.
+- If processing inline writer comments, clear processed comments and append a short `**Done:** ...` note to the agent status/rationale field when one exists.
+- Preserve IDs and assessment targets unless the writer explicitly asks to change them.
+- If `updateArtifact` is false, return the artifact exactly unchanged and set summary to "No lesson changes."
 
-Persist every request and response in a feedback log so future agent behavior can be analyzed.
+Persist every writer request, model response, before/after version IDs, and status in a feedback log so the product team can analyze writer feedback and improve future prompts.
 ```
 
-## Recommended API
+## Recommended API Pattern
 
-Use Netlify Functions or an equivalent server-side API. Keep model and database secrets off the client.
-
-### Browser API
+Use these generic routes, adapting names to the target app.
 
 ```ts
-POST /api/minis/:miniId/revise
+POST /api/artifacts/:artifactId/revise
 body: {
   requestId: string;
   prompt: string;
@@ -117,36 +143,38 @@ body: {
 
 response:
   202 { pending: true, requestId }
-  200 { mini: Mini, response: string }
+  200 { artifact: LessonArtifact, response: string }
+  500 { error: string }
 ```
 
 ```ts
-GET /api/minis/:miniId/revise-status?requestId=...
+GET /api/artifacts/:artifactId/revise-status?requestId=...
 
 response:
   202 { pending: true, requestId }
-  200 { mini: Mini, response: string }
+  200 { artifact: LessonArtifact, response: string }
+  500 { error: string }
 ```
 
 ```ts
-GET /api/agent-messages?kcId=...
+GET /api/agent-messages?contextId=...
 
 response:
-  AgentMessage[]
+  ChatMessage[]
 ```
 
-Optional command route:
+Optional note-processing command:
 
 ```ts
-POST /api/minis/:miniId/process-notes
+POST /api/artifacts/:artifactId/process-notes
 
 response:
-  { mini: Mini; response: string }
+  { artifact: LessonArtifact; response: string }
 ```
 
-In `mini-writer`, typing `process notes` in the same chat box calls the notes-processing endpoint instead of the normal revise endpoint.
+The UI can route a plain-text command such as `process notes` to the note-processing endpoint. This keeps the panel simple: one text box for both chat and commands.
 
-## Claude API Shape
+## Model API
 
 Use Anthropic Messages API server-side:
 
@@ -160,7 +188,7 @@ client.messages.create({
 });
 ```
 
-Use the web search tool only when available and useful:
+Optional web search:
 
 ```ts
 tools: [
@@ -172,140 +200,143 @@ tools: [
 ]
 ```
 
-Make web search optional. If tool use fails, retry without tools. The panel should still work when web search is unavailable.
+Use web search only for requests that benefit from outside examples, research, or current references. Make it optional and retry without tools if the tool call fails.
 
 ## Prompt Structure
 
-Use a system prompt for role and skill:
+Use a system prompt for role and domain rules:
 
 ```text
-You are the revision agent for Sidekick mini lessons. Return only valid JSON.
+You are the revision agent for a lesson-writing tool. Return only valid JSON.
 
-Preserve the writer's intent while applying this skill:
-{MINI_LESSON_SKILL}
+Preserve the writer's intent while applying this domain guidance:
+{LESSON_WRITING_SKILL_OR_GUIDELINES}
 ```
 
-Use a user prompt that contains:
+Use a user prompt that includes:
 
 - Decision rules.
 - Current writer request.
 - Recent chat history.
-- Current mini steps.
+- Current selected artifact.
 - Exact JSON schema.
 - Preservation rules.
 
-The current implementation sends:
+Generic user prompt template:
 
 ```text
 Respond to the writer request.
 
-Important decision rule:
-- If the writer is asking for ideas, critique, explanation, options, clarification, or a planning response, do not update the mini. Set updateMini to false, return the original steps unchanged, and offer to make a change if the writer chooses an option.
-- When the writer asks for ideas, format the response as a numbered list so the writer can refer to each idea by number. Include concrete examples, not shorthand narrative.
-- When any response includes a list of options, recommendations, hooks, examples, or possible revisions, use a numbered list so the writer can refer to items by number.
-- If the writer clearly asks you to revise, use, apply, change, shorten, rewrite, add, remove, or otherwise alter the mini, set updateMini to true and return updated steps.
+Decision rules:
+- If the writer is asking for ideas, critique, explanation, options, clarification, or planning, do not update the artifact. Set updateArtifact to false, return the original artifact unchanged, and offer to make a change if the writer chooses an option.
+- When the writer asks for ideas, format the response as a numbered list so the writer can refer to each idea by number. Include concrete examples.
+- If the writer clearly asks you to revise, apply, change, shorten, rewrite, add, remove, or otherwise alter the artifact, set updateArtifact to true and return the updated artifact.
 - Use recent chat history to resolve follow-ups like "use idea #4".
 - If web search is available and useful, you may use it. If you use web search, include source URLs or short source labels in response.
-- Format your response as short paragraphs and lists with blank lines between sections. Do not return one long narrative block.
-- Treat writerNotes as the writer's per-step requests. Treat agentNotes as your brief status/rationale field.
-- If you process a writerNotes request, clear writerNotes and append a short "**Done:** ..." note to agentNotes for that step.
-- Do not use agentNotes for new writer requests.
+- Format your response as short paragraphs and lists with blank lines between sections.
+- Treat writer comments or inline annotations as writer requests.
+- Treat any agent status/rationale field as your brief completion note.
+- If you process inline writer comments, clear them and append a short "**Done:** ..." note to the agent status/rationale field when one exists.
+- Preserve stable IDs and assessment targets unless the request explicitly changes them.
 
-Writer request: {prompt}
+Writer request:
+{prompt}
 
 Recent chat history:
 {history as JSON}
 
-Steps:
-{mini.steps as JSON}
+Selected artifact:
+{artifact as JSON}
 
 Return JSON:
 {
-  "updateMini": boolean,
-  "steps": MiniStep[],
+  "updateArtifact": boolean,
+  "artifact": LessonArtifact,
   "response": "short response to writer",
   "summary": "version history summary"
 }
 
-If updateMini is false, steps must be exactly the original steps and summary should be "No mini changes.".
-Preserve step ids and math targets unless the request explicitly changes them.
+If updateArtifact is false, artifact must be exactly the original artifact and summary should be "No lesson changes.".
 ```
 
 ## Should The Agent Use JSON, Tools, Or Skills?
 
-Use all three, but for different jobs:
+Use all three, with clear boundaries:
 
-- **JSON output:** Yes. Require JSON from Claude so the server can decide whether to update the mini and what response to show.
-- **Tools:** Optional. Use Anthropic web search for research/ideas requests. Do not require it for normal revision.
-- **Skills/context:** Yes. Include the mini-writing domain guidance (`SKILL.md` / `MINI_LESSON_SKILL`) in the system prompt. Do not expect the model to know the local skill file exists.
+- **JSON output:** Yes. Require structured JSON so the server can safely decide whether to update the lesson artifact and what message to show.
+- **Tools:** Optional. Use web search or retrieval tools for research and examples. Do not require tools for normal revisions.
+- **Skills/context:** Yes. Include the product's lesson-writing guidelines in the system prompt. Do not assume the model has access to local files unless you explicitly send them.
 
-Do not expose Claude's raw JSON in the chat UI. Parse JSON server-side and show only the `response` string.
+Do not expose raw JSON in the chat UI. Parse it server-side and display only the `response` field.
 
-## Storage Model
+## Feedback Log Storage
 
-Use a feedback log table. In `mini-writer`, it is `mini_writer_feedback_log`.
+Store every interaction in a feedback log table or collection.
 
-For every agent request:
+Generic shape:
 
 ```ts
 {
-  kc_id: string;
-  mini_id: string;
+  context_id: string;             // lesson, unit, project, or authoring workspace
+  artifact_id: string;
   before_version_id: string | null;
   after_version_id: string | null;
-  event_type: "agent_revision" | "process_agent_notes" | "generate_mini";
+  event_type: "agent_revision" | "process_notes" | "generation" | string;
   writer_input: string;
   agent_response: string;
   payload: {
     requestId: string;
     status: "started" | "completed" | "failed";
-    updateMini?: boolean;
+    updateArtifact?: boolean;
     history?: { role: string; content: string }[];
+    error?: string;
   };
+  created_at: string;
 }
 ```
 
 Use the log for:
 
-- Reconstructing KC-specific chat history.
-- Debugging agent failures.
-- Capturing writer feedback for future skill improvements.
+- Reconstructing chat history for the selected lesson context.
+- Debugging model failures.
+- Capturing writer feedback for future prompt/skill improvements.
 - Idempotency by `requestId`.
 
 When listing messages:
 
-- Convert `writer_input` rows into writer messages.
-- Convert `agent_response` rows into agent messages.
-- Filter to the selected KC.
-- Keep chat history scoped by KC, not global app state.
+- Convert `writer_input` into writer messages.
+- Convert `agent_response` into agent messages.
+- Filter to the selected context/artifact.
+- Keep chat history scoped to the current lesson context, not global app state.
 
 ## Versioning Rules
 
-If Claude returns `updateMini: true`:
+If the model returns `updateArtifact: true`:
 
-- Validate `steps`.
-- Create an immutable mini version.
-- Update `mini.currentVersionId`.
-- Store `after_version_id`.
-- Return the updated mini to the browser.
+- Validate the updated artifact.
+- Preserve required IDs.
+- Create an immutable version snapshot.
+- Update the artifact's current version pointer.
+- Store `after_version_id` in the feedback log.
+- Return the updated artifact to the browser.
 
-If Claude returns `updateMini: false`:
+If the model returns `updateArtifact: false`:
 
-- Do not create a new mini version.
-- Return the original mini.
+- Do not create a new artifact version.
+- Return the original artifact.
 - Store `after_version_id: null`.
 
-Add a parser fallback so malformed Claude output does not leak raw JSON. If parsing fails, extract a useful `response` string when possible and do not update the mini.
+Add a parser fallback so malformed model output does not leak raw JSON. If parsing fails, extract a useful `response` string when possible and do not update the artifact.
 
 ## UI Behavior
 
 Panel layout:
 
-- Right-side panel.
+- Right-side panel or adjacent side panel.
 - Header at top.
 - Scrollable chat log in the middle.
 - Fixed textarea/send row at bottom.
-- Four-line textarea.
+- One multiline textarea.
 - Small icon send button.
 
 Busy behavior:
@@ -320,22 +351,23 @@ Busy behavior:
 Suggested busy labels:
 
 - `Thinking...`
-- `Reading the mini...`
-- `Checking the skill guidance...`
+- `Reading the lesson...`
+- `Checking the guidance...`
 - `Researching sources...`
 - `Drafting a response...`
 - `Reconsidering...`
-- `Making sure the math still works...`
+- `Checking the learning arc...`
+- `Making sure the assessment target still works...`
 
 Disable rules:
 
-- Disable if no mini is selected.
-- Disable if the mini status is `done`.
+- Disable if no lesson artifact is selected.
+- Disable if the selected artifact is locked or marked done.
 - Disable while a request is running.
 
 ## Hardening Notes
 
-The important production lesson is to avoid long synchronous Claude calls from the browser request path.
+Avoid long synchronous model calls from the browser request path.
 
 Recommended pattern:
 
@@ -346,29 +378,30 @@ Recommended pattern:
 5. Background job updates the existing log row to `completed` or `failed`.
 6. Browser displays only the parsed `response`.
 
-Also add:
+Add:
 
 - Network retries for polling.
 - Idempotency by `requestId`.
+- Failure status instead of indefinitely stuck `started` rows.
 - Parser protection against raw JSON leaking into chat.
-- A test harness that sends no-update prompts and asserts:
+- A smoke test harness that sends no-update prompts and asserts:
   - no timeout;
   - no error message;
   - non-empty response;
   - no raw JSON leak;
-  - no mini version created;
-  - no step changes.
+  - no artifact version created;
+  - no artifact changes.
 
 ## Minimal Implementation Checklist
 
-- [ ] Build `AgentPanel` with header, markdown chat log, working state, textarea, send icon.
-- [ ] Store messages per KC.
-- [ ] Add `POST /api/minis/:id/revise`.
-- [ ] Add `GET /api/minis/:id/revise-status`.
-- [ ] Add background function for Claude calls.
-- [ ] Require Claude JSON output.
+- [ ] Build chat panel with header, markdown chat log, working state, textarea, and send icon.
+- [ ] Store messages scoped to the selected lesson context.
+- [ ] Add `POST /api/artifacts/:id/revise`.
+- [ ] Add `GET /api/artifacts/:id/revise-status`.
+- [ ] Add background function or worker for model calls.
+- [ ] Require structured JSON output.
 - [ ] Parse and validate JSON server-side.
-- [ ] Create mini versions only when `updateMini` is true.
+- [ ] Create artifact versions only when `updateArtifact` is true.
 - [ ] Store all feedback in a log.
-- [ ] Render only `response` in the chat.
+- [ ] Render only the parsed `response` in the chat.
 - [ ] Add no-update agent smoke tests.
