@@ -14,6 +14,7 @@ export type MiniEvalDimension = {
 };
 
 export type MiniEvalSuggestion = {
+  label?: string;
   number: number;
   priority: EvalPriority;
   title: string;
@@ -34,14 +35,19 @@ export type MiniEvalReport = {
   readyForReview: boolean;
 };
 
+function suggestionLabel(index: number) {
+  return String.fromCharCode(65 + index);
+}
+
 function formatMiniEvalReport(report: MiniEvalReport) {
   const dimensions = report.dimensions
     .map((dimension) => `- **${dimension.label}:** ${dimension.rating}. ${dimension.evidence}`)
     .join("\n");
   const suggestions = report.suggestions
-    .map((suggestion) => {
+    .map((suggestion, index) => {
       const steps = suggestion.steps.length ? ` (${suggestion.steps.join(", ")})` : "";
-      return `${suggestion.number}. **[${suggestion.priority}] ${suggestion.title}${steps}**\n   - Issue: ${suggestion.issue}\n   - Suggestion: ${suggestion.suggestion}`;
+      const label = suggestion.label ?? suggestionLabel(index);
+      return `${label}. **[${suggestion.priority}] ${suggestion.title}${steps}**\n   - Issue: ${suggestion.issue}\n   - Suggestion: ${suggestion.suggestion}`;
     })
     .join("\n\n");
 
@@ -108,10 +114,12 @@ Math accuracy and KC focus are the most important dimensions. Put them first in 
 Implementation readiness is one grouped dimension. Put all build/spec issues there: ID problems, unclear target responses, unclear interaction specs, field hygiene, export readiness, and engineering ambiguity. Do not split those into separate dimensions.
 Age-appropriate examples should judge whether contexts feel appropriate and engaging for the target grade. Avoid babyish examples like "one apple plus two apples" or plain pizza-slicing unless there is a very brief teen-engaging backstory, purpose, or stake.
 Game-ability should count steps where a student can answer by simply trying two or three visible options. Count two-option multiple choice, three-option multiple choice, true/false, agree/disagree, and any other 2- or 3-choice interaction. In the evidence, state the count and list the step IDs. Rate strong for 0-2 such steps, mostly_strong for 3, mixed for 4, and needs_work for 5 or more.
+Mini length: do not critique mini length if the mini has 8, 9, 10, or 11 steps. Only critique length if it has fewer than 8 or more than 11 steps.
+Abstract vs application balance: if the KC is especially abstract or symbolic (for example, expression vocabulary, symbolic structure, equation truth, properties, or notation), allow more steps that use abstract math directly without illustrations or concrete examples. Do not require every abstract KC to have application contexts. Otherwise, require some application steps where the student uses the KC in a brief concrete situation.
 
 Use ratings only from: strong, mostly_strong, mixed, needs_work.
 Give specific evidence with step IDs.
-Suggestions must be numbered 1..n in priority order and written so the writer can later say "implement suggestions 1 and 3".
+Suggestions must be labeled A, B, C, ... in priority order and written so the writer can later say "implement suggestions A and C".
 Each suggestion must include an implementationPrompt that can be sent to the revision agent later. The implementationPrompt should be explicit about what to change and what to preserve.
 Do not suggest reteaching precursor skills unless the mini cannot work without a one-step reminder. A good suggestion should keep the mini focused on the KC.
 Prioritize suggestions that fix math accuracy or KC-focus problems before style, engagement, or implementation polish.
@@ -133,6 +141,7 @@ Return JSON:
   ],
   "suggestions": [
     {
+      "label": "A",
       "number": number,
       "priority": "high" | "medium" | "low",
       "title": string,
@@ -154,6 +163,7 @@ function normalizeReport(report: MiniEvalReport, mini: Mini, kc: KnowledgeCompon
     dimensions: report.dimensions ?? [],
     suggestions: (report.suggestions ?? []).map((suggestion, index) => ({
       ...suggestion,
+      label: suggestion.label ?? suggestionLabel(index),
       number: index + 1,
       steps: Array.isArray(suggestion.steps) ? suggestion.steps : [],
     })),

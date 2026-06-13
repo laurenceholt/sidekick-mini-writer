@@ -100,6 +100,7 @@ export interface MiniEvalDimension {
 }
 
 export interface MiniEvalSuggestion {
+  label?: string;
   number: number;
   priority: EvalPriority;
   title: string;

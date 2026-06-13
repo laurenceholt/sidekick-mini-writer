@@ -1,13 +1,18 @@
 import type { MiniEvalReport } from "./types";
 
+function suggestionLabel(index: number) {
+  return String.fromCharCode(65 + index);
+}
+
 export function formatMiniEvalReport(report: MiniEvalReport) {
   const dimensions = report.dimensions
     .map((dimension) => `- **${dimension.label}:** ${dimension.rating}. ${dimension.evidence}`)
     .join("\n");
   const suggestions = report.suggestions
-    .map((suggestion) => {
+    .map((suggestion, index) => {
       const steps = suggestion.steps.length ? ` (${suggestion.steps.join(", ")})` : "";
-      return `${suggestion.number}. **[${suggestion.priority}] ${suggestion.title}${steps}**\n   - Issue: ${suggestion.issue}\n   - Suggestion: ${suggestion.suggestion}`;
+      const label = suggestion.label ?? suggestionLabel(index);
+      return `${label}. **[${suggestion.priority}] ${suggestion.title}${steps}**\n   - Issue: ${suggestion.issue}\n   - Suggestion: ${suggestion.suggestion}`;
     })
     .join("\n\n");
 
