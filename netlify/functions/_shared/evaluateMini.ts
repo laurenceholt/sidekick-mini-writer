@@ -1,5 +1,5 @@
 import { askAnthropicForJson } from "./ai";
-import { getKc, logFeedback } from "./db";
+import { findFeedbackByRequestId, getKc, getMini, logFeedback, updateFeedbackLog } from "./db";
 import { MINI_LESSON_SKILL } from "./miniLessonSkill";
 import type { KnowledgeComponent, Mini } from "./types";
 
@@ -34,6 +34,11 @@ export type MiniEvalReport = {
   readyForReview: boolean;
 };
 
+export type MiniEvalStatus =
+  | { pending: true; requestId: string }
+  | { failed: true; requestId: string; error: string }
+  | { pending?: false; report: MiniEvalReport };
+
 const EVAL_DIMENSIONS = [
   "KC alignment",
   "Learning arc",
@@ -44,6 +49,10 @@ const EVAL_DIMENSIONS = [
   "Engagement and representation",
   "Implementation readiness",
 ];
+
+export function createEvalRequestId() {
+  return crypto.randomUUID();
+}
 
 function evalPrompt(kc: KnowledgeComponent, mini: Mini) {
   return `Evaluate this math mini lesson. Do not revise it. Return only valid JSON.
@@ -131,7 +140,74 @@ function normalizeReport(report: MiniEvalReport, mini: Mini, kc: KnowledgeCompon
   };
 }
 
-export async function evaluateMini(mini: Mini) {
+export async function ensureEvalStarted(mini: Mini, requestId: string) {
+  const existing = await findFeedbackByRequestId(mini.id, requestId);
+  if (existing) return existing;
+  return logFeedback({
+    kc_id: mini.kcId,
+    mini_id: mini.id,
+    before_version_id: mini.currentVersionId,
+    after_version_id: null,
+    event_type: "mini_eval",
+    writer_input: "Eval",
+    agent_response: "",
+    payload: { requestId, status: "started" },
+  });
+}
+
+export async function getEvalStatus(miniId: string, requestId: string): Promise<MiniEvalStatus | null> {
+  const existing = await findFeedbackByRequestId(miniId, requestId);
+  if (!existing) return null;
+  if (existing.payload?.status === "failed") {
+    return { failed: true, requestId, error: existing.payload?.error ?? "Mini eval failed." };
+  }
+  if (existing.payload?.status !== "completed") return { pending: true, requestId };
+  const report = existing.payload?.report as MiniEvalReport | undefined;
+  if (!report) throw new Error("Mini eval report not found.");
+  return { report };
+}
+
+export async function runMiniEval(mini: Mini, requestId: string) {
+  const existingStatus = await getEvalStatus(mini.id, requestId);
+  if (existingStatus && !("pending" in existingStatus && existingStatus.pending)) return existingStatus;
+  const pendingFeedback = await ensureEvalStarted(mini, requestId);
+  try {
+    const report = await evaluateMini(mini);
+    const feedbackEntry = {
+      kc_id: mini.kcId,
+      mini_id: mini.id,
+      before_version_id: mini.currentVersionId,
+      after_version_id: null,
+      event_type: "mini_eval",
+      writer_input: "Eval",
+      agent_response: report.summary,
+      payload: { requestId, status: "completed", report },
+    };
+    if (pendingFeedback?.id) {
+      await updateFeedbackLog(pendingFeedback.id, feedbackEntry);
+    } else {
+      await logFeedback(feedbackEntry);
+    }
+    return { report };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Mini eval failed.";
+    if (pendingFeedback?.id) {
+      await updateFeedbackLog(pendingFeedback.id, {
+        kc_id: mini.kcId,
+        mini_id: mini.id,
+        before_version_id: mini.currentVersionId,
+        after_version_id: null,
+        event_type: "mini_eval",
+        writer_input: "Eval",
+        agent_response: `Mini eval failed: ${message}`,
+        payload: { requestId, status: "failed", error: message },
+      });
+    }
+    throw error;
+  }
+}
+
+async function evaluateMini(mini: Mini) {
   const kc = await getKc(mini.kcId);
   if (!kc) throw new Error("KC not found for mini.");
 
@@ -147,16 +223,11 @@ ${MINI_LESSON_SKILL}`,
     kc,
   );
 
-  await logFeedback({
-    kc_id: mini.kcId,
-    mini_id: mini.id,
-    before_version_id: mini.currentVersionId,
-    after_version_id: null,
-    event_type: "mini_eval",
-    writer_input: "Eval",
-    agent_response: report.summary,
-    payload: { status: "completed", report },
-  });
-
   return report;
+}
+
+export async function runMiniEvalById(miniId: string, requestId: string) {
+  const mini = await getMini(miniId);
+  if (!mini) throw new Error("Mini not found.");
+  return runMiniEval(mini, requestId);
 }

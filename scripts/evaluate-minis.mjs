@@ -3,6 +3,8 @@
 const DEFAULT_BASE_URL = "https://sidekick-mini-writer.netlify.app";
 const DEFAULT_WRITER = "Laurence";
 const REQUEST_TIMEOUT_MS = Number(process.env.MINI_EVAL_REQUEST_TIMEOUT_MS ?? 180_000);
+const POLL_INTERVAL_MS = Number(process.env.MINI_EVAL_POLL_INTERVAL_MS ?? 2_000);
+const TIMEOUT_MS = Number(process.env.MINI_EVAL_TIMEOUT_MS ?? 300_000);
 
 const baseUrl = (process.env.MINI_WRITER_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
 const writer = process.env.MINI_WRITER_WRITER ?? DEFAULT_WRITER;
@@ -44,6 +46,35 @@ async function findMinis() {
   return found;
 }
 
+function requestId() {
+  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pollEval(miniId, id) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < TIMEOUT_MS) {
+    await wait(POLL_INTERVAL_MS);
+    const status = await request(`/api/minis/${miniId}/eval-status?requestId=${encodeURIComponent(id)}`);
+    if (status?.failed) throw new Error(status.error ?? "Mini eval failed.");
+    if (!status?.pending) return status;
+  }
+  throw new Error(`Timed out after ${Math.round(TIMEOUT_MS / 1000)} seconds.`);
+}
+
+async function runEval(miniId) {
+  const id = requestId();
+  const started = await request(`/api/minis/${miniId}/eval`, {
+    method: "POST",
+    body: JSON.stringify({ requestId: id }),
+  });
+  if (started?.failed) throw new Error(started.error ?? "Mini eval failed.");
+  return started?.pending ? pollEval(miniId, started.requestId) : started;
+}
+
 function printReport(index, kc, mini, report) {
   console.log(`\n# Eval ${index}: ${kc.grade}-${kc.topic}-${kc.kcNumber} ${kc.title} · Mini ${mini.miniIndex}`);
   console.log(`Mini title: ${mini.title}`);
@@ -76,7 +107,7 @@ if (targets.length < limit) {
 for (const [index, { kc, mini }] of targets.entries()) {
   process.stderr.write(`Evaluating ${index + 1}/${targets.length}: ${kc.title} mini ${mini.miniIndex}... `);
   const startedAt = Date.now();
-  const report = await request(`/api/minis/${mini.id}/eval`, { method: "POST" });
+  const result = await runEval(mini.id);
   process.stderr.write(`${((Date.now() - startedAt) / 1000).toFixed(1)}s\n`);
-  printReport(index + 1, kc, mini, report);
+  printReport(index + 1, kc, mini, result.report);
 }
