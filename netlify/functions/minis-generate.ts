@@ -2,18 +2,20 @@ import type { Config, Context } from "@netlify/functions";
 import { getKc } from "./_shared/db";
 import { createGenerateRequestId, ensureMiniGenerationStarted, getActiveMiniGenerationStatus, getMiniGenerationStatus, runMiniGeneration } from "./_shared/generateMini";
 import { error, json } from "./_shared/response";
+import type { AgentMessage } from "./_shared/types";
 
 type GenerateMiniRequest = {
   kcId?: string;
   requestId?: string;
+  history?: AgentMessage[];
 };
 
-async function startBackgroundGeneration(req: Request, kcId: string, requestId: string) {
+async function startBackgroundGeneration(req: Request, kcId: string, requestId: string, history: AgentMessage[]) {
   const backgroundUrl = new URL("/.netlify/functions/minis-generate-background", req.url);
   await fetch(backgroundUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ kcId, requestId }),
+    body: JSON.stringify({ kcId, requestId, history }),
   });
 }
 
@@ -29,7 +31,7 @@ export default async (req: Request, context: Context) => {
       return status ? json(status) : error("Mini generation request not found", 404);
     }
     if (req.method !== "POST") return error("Method not allowed", 405);
-    const { kcId, requestId = createGenerateRequestId() } = (await req.json()) as GenerateMiniRequest;
+    const { kcId, requestId = createGenerateRequestId(), history = [] } = (await req.json()) as GenerateMiniRequest;
     if (!kcId) return error("kcId is required", 400);
     const kc = await getKc(kcId);
     if (!kc) return error("KC not found", 404);
@@ -40,11 +42,11 @@ export default async (req: Request, context: Context) => {
     const active = await getActiveMiniGenerationStatus(kc.id);
     if (active && "pending" in active && active.pending) return json(active, { status: 202 });
 
-    const started = await ensureMiniGenerationStarted(kc, requestId);
+    const started = await ensureMiniGenerationStarted(kc, requestId, history);
     if (!started) {
-      return json(await runMiniGeneration(kc, requestId), { status: 201 });
+      return json(await runMiniGeneration(kc, requestId, history), { status: 201 });
     }
-    context.waitUntil(startBackgroundGeneration(req, kc.id, requestId));
+    context.waitUntil(startBackgroundGeneration(req, kc.id, requestId, history));
     return json({ pending: true, requestId }, { status: 202 });
   } catch (err) {
     return error(err instanceof Error ? err.message : "Unexpected error");

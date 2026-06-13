@@ -305,7 +305,7 @@ export default function App() {
     setGeneratingMiniKcId(kcId);
     setAgentBusyLabel("Generating mini...");
     try {
-      const { mini, response } = await api.generateMini(kcId);
+      const { mini, response } = await api.generateMini(kcId, messages);
       updateWorkspace((data) => ({ ...data, minis: [...data.minis, mini] }));
       setSelectedMiniId(mini.id);
       appendKcMessage("agent", response, kcId);

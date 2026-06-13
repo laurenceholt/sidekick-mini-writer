@@ -129,12 +129,12 @@ export const api = {
   getActiveMiniGeneration: (kcId: string) =>
     request<PendingRequest | FailedRequest | null>(`/api/generate-mini-status?kcId=${encodeURIComponent(kcId)}`, { networkRetries: 2 }),
   waitForMiniGeneration: pollMiniGeneration,
-  generateMini: async (kcId: string) => {
+  generateMini: async (kcId: string, history: AgentMessage[]) => {
     const id = requestId();
     const started = await request<GenerateMiniResult | PendingRequest | FailedRequest>("/api/generate-mini", {
       method: "POST",
       networkRetries: 1,
-      body: JSON.stringify({ kcId, requestId: id }),
+      body: JSON.stringify({ kcId, requestId: id, history }),
     });
     if (isFailedRequest(started)) throw new Error(started.error);
     return isPendingRequest(started) ? pollMiniGeneration(kcId, started.requestId) : started;

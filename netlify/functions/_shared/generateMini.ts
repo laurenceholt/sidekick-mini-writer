@@ -1,7 +1,7 @@
 import { askAnthropicForJson } from "./ai";
 import { createMini, findFeedbackByKcRequestId, findPendingMiniGenerationByKc, getMini, listMinis, logFeedback, updateFeedbackLog } from "./db";
 import { MINI_LESSON_SKILL } from "./miniLessonSkill";
-import type { KnowledgeComponent, Mini, MiniStep } from "./types";
+import type { AgentMessage, KnowledgeComponent, Mini, MiniStep } from "./types";
 
 type GeneratedMini = {
   title: string;
@@ -15,12 +15,29 @@ export type GenerateMiniStatus =
   | { pending?: false; mini: Mini; response: string };
 
 const GENERATION_STALE_MS = 20 * 60 * 1000;
+const MAX_GENERATION_HISTORY_MESSAGES = 20;
 
 export function createGenerateRequestId() {
   return crypto.randomUUID();
 }
 
-export async function ensureMiniGenerationStarted(kc: KnowledgeComponent, requestId: string) {
+function cleanHistory(history: AgentMessage[]) {
+  return history
+    .filter((message) => message?.content?.trim())
+    .slice(-MAX_GENERATION_HISTORY_MESSAGES)
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+      createdAt: message.createdAt,
+    }));
+}
+
+function formatHistory(history: AgentMessage[]) {
+  const recentHistory = cleanHistory(history);
+  return recentHistory.length ? JSON.stringify(recentHistory, null, 2) : "[]";
+}
+
+export async function ensureMiniGenerationStarted(kc: KnowledgeComponent, requestId: string, history: AgentMessage[] = []) {
   const existing = await findFeedbackByKcRequestId(kc.id, requestId);
   if (existing) return existing;
   return logFeedback({
@@ -29,7 +46,7 @@ export async function ensureMiniGenerationStarted(kc: KnowledgeComponent, reques
     event_type: "generate_mini",
     writer_input: "Generate Mini",
     agent_response: "",
-    payload: { requestId, status: "started" },
+    payload: { requestId, status: "started", history: cleanHistory(history) },
   });
 }
 
@@ -66,10 +83,10 @@ export async function getActiveMiniGenerationStatus(kcId: string): Promise<Gener
   return { pending: true, requestId };
 }
 
-export async function runMiniGeneration(kc: KnowledgeComponent, requestId: string) {
+export async function runMiniGeneration(kc: KnowledgeComponent, requestId: string, history: AgentMessage[] = []) {
   const existingStatus = await getMiniGenerationStatus(kc.id, requestId);
   if (existingStatus && (!("pending" in existingStatus) || !existingStatus.pending)) return existingStatus;
-  const pendingFeedback = await ensureMiniGenerationStarted(kc, requestId);
+  const pendingFeedback = await ensureMiniGenerationStarted(kc, requestId, history);
   try {
     const existing = await listMinis(kc.id);
     const miniIndex = Math.min(existing.length + 1, 4);
@@ -84,6 +101,10 @@ KC: ${kc.title}
 Condition: ${kc.condition}
 Response: ${kc.response}
 Worked example: ${kc.workedExampleMd}
+KC notes from writer: ${kc.notesMd?.trim() || "None"}
+
+Recent KC chat history:
+${formatHistory(history)}
 
 Return JSON:
 {
@@ -104,7 +125,7 @@ Return JSON:
   ]
 }
 
-Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.topic}-${kc.kcNumber}-${miniIndex}-stepNumber. Keep learner instructions short. Use plain text math, not math markup. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers. Set writerNotes and agentNotes to empty strings on every generated step.
+Use exactly 8-12 steps. Step ids must follow ${kc.grade}-${kc.topic}-${kc.kcNumber}-${miniIndex}-stepNumber. Use the KC notes and recent chat history as writer intent/context, but do not quote them unless useful. Keep learner instructions short. Use plain text math, not math markup. Focus directly on the KC rather than teaching precursor skills. Build a warm-up to naming to stretching to synthesis arc, vary interaction types, and avoid hints that give away answers. Set writerNotes and agentNotes to empty strings on every generated step.
 
 Write 3-5 short rationale bullets explaining the hook, sequencing, interaction choices, and how the mini follows the skill. Each rationale bullet should be a complete sentence, not shorthand.`,
       { enableWebSearch: true },
@@ -119,7 +140,7 @@ Write 3-5 short rationale bullets explaining the hook, sequencing, interaction c
       writer_input: "Generate Mini",
       agent_response: response,
       after_version_id: mini.currentVersionId,
-      payload: { requestId, status: "completed" },
+      payload: { requestId, status: "completed", history: cleanHistory(history) },
     };
     if (pendingFeedback?.id) {
       await updateFeedbackLog(pendingFeedback.id, feedbackEntry);
@@ -136,7 +157,7 @@ Write 3-5 short rationale bullets explaining the hook, sequencing, interaction c
         event_type: "generate_mini",
         writer_input: "Generate Mini",
         agent_response: `Mini generation failed: ${message}`,
-        payload: { requestId, status: "failed", error: message },
+        payload: { requestId, status: "failed", error: message, history: cleanHistory(history) },
       });
     }
     throw error;

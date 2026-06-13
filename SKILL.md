@@ -9,6 +9,14 @@ These lessons are short, interactive math practice sequences (around ten steps e
 
 The goal is that by the end of a ten-step mini-lesson, the student is doing something they couldn't have done at step one, often without the visual aids they started with. Lessons are friendly, never lecturing, and trust the student to figure things out from doing.
 
+## Focus on the KC
+
+A mini-lesson teaches the named knowledge component, not the full chain of prerequisite skills beneath it. Assume the student has the relevant precursor knowledge unless the KC notes say otherwise. Do not spend the mini reteaching prerequisites such as basic multiplication, simplifying fractions, or reading a number line when those are only supports for the KC.
+
+It is okay to include a very brief reminder of a critical precursor when the new KC cannot start without it. Keep that reminder to one quick step, or occasionally two tightly linked steps, then move immediately into the new KC. For example, a mini on adding fractions with unlike denominators may give one quick practice step on finding a common denominator and one quick step on making equivalent fractions with that denominator, but the lesson should then focus on adding the unlike-denominator fractions.
+
+Use precursor reminders to clear the runway, not to teach a separate mini-lesson. If more than the first one or two steps are about precursors, the mini has drifted away from the KC.
+
 ## Lesson architecture
 
 A *lesson* contains one to three *mini-lessons*. A mini-lesson is the ten-step table. After all mini-lessons, the lesson ends with a *mastery check* of two or three problems.
