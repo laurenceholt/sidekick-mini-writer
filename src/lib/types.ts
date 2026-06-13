@@ -88,3 +88,34 @@ export interface AgentMessage {
   content: string;
   createdAt: string;
 }
+
+export type EvalRating = "strong" | "mostly_strong" | "mixed" | "needs_work";
+export type EvalPriority = "high" | "medium" | "low";
+
+export interface MiniEvalDimension {
+  key: string;
+  label: string;
+  rating: EvalRating;
+  evidence: string;
+}
+
+export interface MiniEvalSuggestion {
+  number: number;
+  priority: EvalPriority;
+  title: string;
+  steps: string[];
+  issue: string;
+  suggestion: string;
+  implementationPrompt: string;
+}
+
+export interface MiniEvalReport {
+  miniId: string;
+  kcId: string;
+  title: string;
+  overallRating: EvalRating;
+  summary: string;
+  dimensions: MiniEvalDimension[];
+  suggestions: MiniEvalSuggestion[];
+  readyForReview: boolean;
+}

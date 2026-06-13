@@ -19,7 +19,6 @@ export function AgentPanel({ mini, messages, busyLabel, disabledReason, onSend }
       <div className="panel-header">
         <div>
           <p className="eyebrow">Revision agent</p>
-          <h2>Agent</h2>
         </div>
         <MessageSquareText size={22} />
       </div>
@@ -27,7 +26,14 @@ export function AgentPanel({ mini, messages, busyLabel, disabledReason, onSend }
       <div className="chat-log">
         {messages.length === 0 && <p className="muted">Ask for revisions, ideas, or type “process notes”.</p>}
         {messages.map((message) => (
-          <div key={message.id} className={message.role === "writer" ? "chat-message writer" : "chat-message agent"}>
+          <div
+            key={message.id}
+            className={[
+              "chat-message",
+              message.role === "writer" ? "writer" : "agent",
+              message.content.trim().startsWith("**Eval mini**") ? "eval" : "",
+            ].filter(Boolean).join(" ")}
+          >
             <MarkdownText text={message.content} />
           </div>
         ))}

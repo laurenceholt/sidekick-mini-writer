@@ -1,4 +1,4 @@
-import { CopyPlus, Eye, EyeOff, GripVertical, Link2, Plus, Trash2 } from "lucide-react";
+import { ClipboardCheck, CopyPlus, Eye, EyeOff, GripVertical, Link2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { makeStepId, renumberSteps } from "../lib/ids";
@@ -12,10 +12,12 @@ interface MiniEditorProps {
   onSelectMini: (id: string) => void;
   onChangeMini: (mini: Mini, snapshot?: boolean) => void;
   onAddMini: () => void;
+  onEvalMini: () => void;
   onDeleteMini: (id: string) => void;
   onRevert: (versionId: string) => void;
   creatingKc?: { grade: number; topic: number; kcNumber: number; condition: string; response: string } | null;
   generatingMini?: boolean;
+  evaluatingMini?: boolean;
 }
 
 type ColumnKey = "drag" | "step" | "instruction" | "interaction" | "hint" | "writerNotes" | "agentNotes" | "actions";
@@ -31,7 +33,7 @@ function kcCode(kc: KnowledgeComponent) {
   return `${kc.grade}-${kc.topic}-${kc.kcNumber}`;
 }
 
-export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onDeleteMini, onRevert, creatingKc, generatingMini }: MiniEditorProps) {
+export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMini, onAddMini, onEvalMini, onDeleteMini, onRevert, creatingKc, generatingMini, evaluatingMini }: MiniEditorProps) {
   const selectedMini = minis.find((mini) => mini.id === selectedMiniId) ?? minis[0];
   const [showStepIds, setShowStepIds] = useState(true);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
@@ -40,11 +42,11 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
   const [columnWidths, setColumnWidths] = useState<Record<ColumnKey, number>>({
     drag: 34,
     step: 92,
-    instruction: 330,
-    interaction: 430,
-    hint: 210,
-    writerNotes: 190,
-    agentNotes: 190,
+    instruction: 300,
+    interaction: 360,
+    hint: 180,
+    writerNotes: 160,
+    agentNotes: 160,
     actions: 42,
   });
 
@@ -189,6 +191,10 @@ export function MiniEditor({ kc, minis, selectedMiniId, onSelectMini, onChangeMi
           <button className="secondary-button" onClick={onAddMini} disabled={minis.length >= 4}>
             <CopyPlus size={17} />
             Add mini
+          </button>
+          <button className="secondary-button eval-button" onClick={onEvalMini} disabled={!selectedMini || evaluatingMini}>
+            <ClipboardCheck size={17} />
+            {evaluatingMini ? "Evaluating" : "Eval mini"}
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { seedWorkspace } from "./seed";
-import type { AgentMessage, KnowledgeComponent, Mini, NewKcInput, WorkspaceData } from "./types";
+import type { AgentMessage, KnowledgeComponent, Mini, MiniEvalReport, NewKcInput, WorkspaceData } from "./types";
 
 export interface GenerateMiniResult {
   mini: Mini;
@@ -9,6 +9,10 @@ export interface GenerateMiniResult {
 type RevisionResult = {
   mini: Mini;
   response: string;
+};
+
+type EvalResult = {
+  report: MiniEvalReport;
 };
 
 type PendingRequest = {
@@ -73,11 +77,11 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
   throw new Error(`Request failed: ${path}`);
 }
 
-function isPendingRequest(value: RevisionResult | GenerateMiniResult | PendingRequest | FailedRequest | null): value is PendingRequest {
+function isPendingRequest(value: RevisionResult | GenerateMiniResult | EvalResult | PendingRequest | FailedRequest | null): value is PendingRequest {
   return Boolean(value && "pending" in value && value.pending);
 }
 
-function isFailedRequest(value: RevisionResult | GenerateMiniResult | PendingRequest | FailedRequest | null): value is FailedRequest {
+function isFailedRequest(value: RevisionResult | GenerateMiniResult | EvalResult | PendingRequest | FailedRequest | null): value is FailedRequest {
   return Boolean(value && "failed" in value && value.failed);
 }
 
@@ -106,6 +110,20 @@ async function pollMiniGeneration(kcId: string, id: string): Promise<GenerateMin
     if (!isPendingRequest(status)) return status;
   }
   throw new Error("Claude is still generating. Refresh this KC to reconnect to the pending job.");
+}
+
+async function pollMiniEval(miniId: string, id: string): Promise<EvalResult> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 300_000) {
+    await wait(2_000);
+    const status = await request<EvalResult | PendingRequest | FailedRequest>(
+      `/api/minis/${miniId}/eval-status?requestId=${encodeURIComponent(id)}`,
+      { networkRetries: 2 },
+    );
+    if (isFailedRequest(status)) throw new Error(status.error);
+    if (!isPendingRequest(status)) return status;
+  }
+  throw new Error("Claude is still evaluating. Try again in a moment.");
 }
 
 export async function fetchWorkspace(writerName: string): Promise<WorkspaceData> {
@@ -155,4 +173,14 @@ export const api = {
   },
   processNotes: (miniId: string) => request<{ mini: Mini; response: string }>(`/api/minis/${miniId}/process-notes`, { method: "POST" }),
   revertMini: (miniId: string, versionId: string) => request<Mini>(`/api/minis/${miniId}/revert`, { method: "POST", body: JSON.stringify({ versionId }) }),
+  evalMini: async (miniId: string) => {
+    const id = requestId();
+    const started = await request<EvalResult | PendingRequest | FailedRequest>(`/api/minis/${miniId}/eval`, {
+      method: "POST",
+      networkRetries: 1,
+      body: JSON.stringify({ requestId: id }),
+    });
+    if (isFailedRequest(started)) throw new Error(started.error);
+    return isPendingRequest(started) ? pollMiniEval(miniId, started.requestId) : started;
+  },
 };

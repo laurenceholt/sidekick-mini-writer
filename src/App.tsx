@@ -5,6 +5,7 @@ import { KcPanel } from "./components/KcPanel";
 import { MiniEditor } from "./components/MiniEditor";
 import { MinisWordmark } from "./components/MinisWordmark";
 import { api, fetchWorkspace } from "./lib/api";
+import { formatMiniEvalReport } from "./lib/evalFormat";
 import { createId } from "./lib/ids";
 import { generateMiniForKc } from "./lib/localAgent";
 import { loadLocalWorkspace, saveLocalWorkspace } from "./lib/localStore";
@@ -87,6 +88,7 @@ export default function App() {
   const [creatingKc, setCreatingKc] = useState<NewKcInput | null>(null);
   const [kcCreateError, setKcCreateError] = useState<string | null>(null);
   const [generatingMiniKcId, setGeneratingMiniKcId] = useState<string | null>(null);
+  const [evaluatingMiniId, setEvaluatingMiniId] = useState<string | null>(null);
   const [kcPanelCollapsed, setKcPanelCollapsed] = useState(() => localStorage.getItem(KC_PANEL_COLLAPSED_KEY) === "true");
   const kcSaveTimers = useRef(new Map<string, number>());
   const miniSaveTimers = useRef(new Map<string, number>());
@@ -356,6 +358,24 @@ export default function App() {
     setSelectedMiniId(mini.id);
   };
 
+  const handleEvalMini = async () => {
+    if (!selectedMini) return;
+    const miniId = selectedMini.id;
+    const kcId = selectedMini.kcId;
+    if (evaluatingMiniId === miniId) return;
+    setEvaluatingMiniId(miniId);
+    setAgentBusyLabel("Evaluating mini...");
+    try {
+      const { report } = await api.evalMini(miniId);
+      appendKcMessage("agent", formatMiniEvalReport(report), kcId);
+    } catch (err) {
+      appendKcMessage("agent", `I couldn't evaluate that mini: ${errorMessage(err)}`, kcId);
+    } finally {
+      setEvaluatingMiniId(null);
+      setAgentBusyLabel(null);
+    }
+  };
+
   const handleDeleteMini = (miniId: string) => {
     const remaining = minisForKc.filter((mini) => mini.id !== miniId);
     updateWorkspace((data) => ({ ...data, minis: data.minis.filter((mini) => mini.id !== miniId) }));
@@ -486,9 +506,11 @@ export default function App() {
           selectedMiniId={selectedMini?.id ?? null}
           creatingKc={creatingKc}
           generatingMini={Boolean(generatingMiniKcId)}
+          evaluatingMini={selectedMini ? evaluatingMiniId === selectedMini.id : false}
           onSelectMini={setSelectedMiniId}
           onChangeMini={handleMiniChange}
           onAddMini={handleAddMini}
+          onEvalMini={handleEvalMini}
           onDeleteMini={handleDeleteMini}
           onRevert={handleRevert}
         />

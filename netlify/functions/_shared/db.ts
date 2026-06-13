@@ -711,7 +711,7 @@ export async function listAgentMessages(kcId: string) {
     .from(TABLES.feedback)
     .select("*")
     .eq("kc_id", kcId)
-    .in("event_type", ["agent_revision", "generate_mini", "process_agent_notes"])
+    .in("event_type", ["agent_revision", "generate_mini", "process_agent_notes", "mini_eval"])
     .order("created_at", { ascending: true })
     .limit(200);
   if (error) throw error;
