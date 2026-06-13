@@ -89,6 +89,8 @@ This is for the designer or engineer building the step. Be precise. Cover:
 
 Sequence interactions from receptive to productive within a mini-lesson. Tap-to-plot and multiple choice come before text entry. Two-option multiple choice is the easiest format; three options is harder; agree/disagree sits between them. Text entry and "write your own" are the most demanding and belong later in the arc. By the time the student is typing, they've seen the same idea several times in lower-stakes formats.
 
+Minimize gameable choice steps. Some students will click through every option in a two- or three-choice item without thinking. In a ten-step mini, aim for three or fewer steps where the student can answer by simply trying two or three visible options. This includes two-option multiple choice, three-option multiple choice, true/false, agree/disagree, and any other interaction with only two or three visible choices. Use these sparingly for warm-ups, contrasts, or checks. Prefer interactions that require a real response: tap/select from a larger set, drag/sort, plot, type, build an expression, choose from a richer menu, or explain.
+
 Vary the interaction type across consecutive steps. Ten "Which is greater?" multiple-choice questions in a row will lose any student. Mix plotting, comparing, agreeing/disagreeing, and typing across the ten steps.
 
 ### Hint text

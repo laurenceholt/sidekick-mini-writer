@@ -44,6 +44,7 @@ const EVAL_DIMENSIONS = [
   "KC focus",
   "Age-appropriate examples",
   "Learning arc",
+  "Game-ability",
   "Step clarity",
   "Hint quality",
   "Engagement and representation",
@@ -92,6 +93,7 @@ ${EVAL_DIMENSIONS.map((dimension) => `- ${dimension}`).join("\n")}
 Math accuracy and KC focus are the most important dimensions. Put them first in the returned dimensions array. If either one is mixed or needs_work, the mini should usually not be ready for review.
 Implementation readiness is one grouped dimension. Put all build/spec issues there: ID problems, unclear target responses, unclear interaction specs, field hygiene, export readiness, and engineering ambiguity. Do not split those into separate dimensions.
 Age-appropriate examples should judge whether contexts feel appropriate and engaging for the target grade. Avoid babyish examples like "one apple plus two apples" or plain pizza-slicing unless there is a very brief teen-engaging backstory, purpose, or stake.
+Game-ability should count steps where a student can answer by simply trying two or three visible options. Count two-option multiple choice, three-option multiple choice, true/false, agree/disagree, and any other 2- or 3-choice interaction. In the evidence, state the count and list the step IDs. Rate strong for 0-2 such steps, mostly_strong for 3, mixed for 4, and needs_work for 5 or more.
 
 Use ratings only from: strong, mostly_strong, mixed, needs_work.
 Give specific evidence with step IDs.
