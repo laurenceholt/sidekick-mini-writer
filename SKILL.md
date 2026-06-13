@@ -35,6 +35,8 @@ Before drafting, look for a concrete hook that makes the KC feel worth doing. If
 
 The hook should put the math inside a small situation the student can picture: two receipts to check whether a store rang something up correctly, a balance scale for equality, a number line walk for integers, or a row of skyscrapers to introduce the coordinate plane. Use the hook to shape the opening steps and illustrations, not as a long preface.
 
+Examples should feel age-appropriate for the target grade. Avoid babyish contexts like "one apple plus two apples" or plain pizza-slicing unless there is a very brief backstory, purpose, or stake that makes it feel worth a preteen or teen's attention. The context can still be simple, but it should not feel like a worksheet for much younger children. A receipt dispute, game score, group chat poll, ride-height rule, sports stat, music playlist, school fundraiser, snack budget, or small design/build decision usually lands better than generic food counting.
+
 ### Warm-up (early steps)
 
 The student does the new thing before being told what it's called. Plot a -3 before the word "negative" appears. Scaffolding is at its highest: number line visible, multiple choice with two options, range kept small. The first one or two steps should feel almost easy.

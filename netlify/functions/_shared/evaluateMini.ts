@@ -40,12 +40,12 @@ export type MiniEvalStatus =
   | { pending?: false; report: MiniEvalReport };
 
 const EVAL_DIMENSIONS = [
-  "KC alignment",
+  "Math accuracy",
+  "KC focus",
+  "Age-appropriate examples",
   "Learning arc",
   "Step clarity",
-  "Interaction quality",
   "Hint quality",
-  "Math correctness",
   "Engagement and representation",
   "Implementation readiness",
 ];
@@ -86,14 +86,19 @@ ${JSON.stringify(
   2,
 )}
 
-Judge the mini on these dimensions:
+Judge the mini on these dimensions, in this priority order:
 ${EVAL_DIMENSIONS.map((dimension) => `- ${dimension}`).join("\n")}
+
+Math accuracy and KC focus are the most important dimensions. Put them first in the returned dimensions array. If either one is mixed or needs_work, the mini should usually not be ready for review.
+Implementation readiness is one grouped dimension. Put all build/spec issues there: ID problems, unclear target responses, unclear interaction specs, field hygiene, export readiness, and engineering ambiguity. Do not split those into separate dimensions.
+Age-appropriate examples should judge whether contexts feel appropriate and engaging for the target grade. Avoid babyish examples like "one apple plus two apples" or plain pizza-slicing unless there is a very brief teen-engaging backstory, purpose, or stake.
 
 Use ratings only from: strong, mostly_strong, mixed, needs_work.
 Give specific evidence with step IDs.
 Suggestions must be numbered 1..n in priority order and written so the writer can later say "implement suggestions 1 and 3".
 Each suggestion must include an implementationPrompt that can be sent to the revision agent later. The implementationPrompt should be explicit about what to change and what to preserve.
 Do not suggest reteaching precursor skills unless the mini cannot work without a one-step reminder. A good suggestion should keep the mini focused on the KC.
+Prioritize suggestions that fix math accuracy or KC-focus problems before style, engagement, or implementation polish.
 
 Return JSON:
 {
