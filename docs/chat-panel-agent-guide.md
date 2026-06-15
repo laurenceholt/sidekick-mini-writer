@@ -1,10 +1,26 @@
-# Generic Lesson Writer Chat Panel Guide
+# Generic Lesson Writer Agent Guide
 
-Use this guide to ask another coding agent to build a reusable chat panel alongside a lesson-writing interface. The panel is a revision/planning assistant for a selected lesson artifact in a separate lesson-writing app.
+Use this guide to ask another coding agent to build two related agent features for a lesson-writing interface.
 
-## What Context To Send The Agent
+There are two separate use cases:
 
-Send enough context for the agent to understand four things:
+1. **Initial lesson generation:** the writer has defined the source context, such as a learning objective, knowledge component, standard, or lesson brief. The agent creates a new lesson artifact from that source context.
+2. **Side-panel chat and revision:** the writer has an existing lesson artifact selected. The agent can discuss it, suggest ideas, or revise it.
+
+These use cases can share the same model client, domain skill, feedback log, chat history, and background-job pattern. They should still be implemented as separate flows because they send different context to the model and expect different JSON back.
+
+## What Context To Send The Coding Agent
+
+Send enough context for the coding agent to understand both workflows.
+
+For **initial lesson generation**, provide:
+
+1. The source context shape, such as objective, condition/response, standards, worked example, constraints, or notes.
+2. The lesson artifact shape the model should create.
+3. The expected count, ID format, status, and versioning rules for generated artifacts.
+4. The domain guidance or skill file the generator must follow.
+
+For **side-panel chat and revision**, provide:
 
 1. The selected lesson artifact shape.
 2. How edits are saved and versioned.
@@ -13,7 +29,8 @@ Send enough context for the agent to understand four things:
 
 Useful context to provide:
 
-- The UI component or layout where the chat panel should live.
+- The UI component or layout where the generation button and chat panel should live.
+- The source context type, such as a learning objective, knowledge component, standard, lesson brief, or teacher note.
 - The selected lesson artifact type, such as a lesson, activity, slide sequence, step table, problem set, or teacher guide section.
 - The app's existing save/version model.
 - The app's API style and deployment target.
@@ -84,116 +101,9 @@ type InitialGenerationResult = {
 
 If the target app does not have `parts`, use whatever unit is editable: slides, cards, sections, pages, rows, scenes, questions, blocks, or document spans.
 
-## Copyable Prompt For Another Coding Agent
+## Use Case 1: Initial Lesson Generation
 
-```text
-Build a right-side chat panel for a lesson-writing app.
-
-The panel is for a revision/planning agent that helps a writer discuss or revise the currently selected lesson artifact.
-
-UI requirements:
-
-1. Place the panel alongside the editor, usually on the right.
-2. Show a compact header with an eyebrow such as "Revision agent", title "Agent", and a message icon.
-3. Show a scrollable chat log.
-4. Render writer and agent messages with visually distinct bubble styles.
-5. Render markdown in messages: paragraphs, bold, numbered lists, bullet lists, inline code, and line breaks.
-6. Show empty-state text such as "Ask for revisions, ideas, or feedback."
-7. Show a working indicator while the agent is running. Start with "Thinking..." and optionally cycle through other short status labels.
-8. Keep the text-entry area fixed at the bottom of the panel.
-9. Use one textarea for all writer requests. Do not create separate request boxes unless the product has a clear workflow reason.
-10. Use a small send-icon button.
-11. Disable the panel when there is no selected artifact, when the selected artifact is locked/done, or while a request is running.
-
-Server/API requirements:
-
-1. Keep model and database secrets server-side.
-2. Browser sends a request with `{ requestId, prompt, history }`.
-3. Server logs the request with status `started`.
-4. Server starts model work in a background job or another long-running worker.
-5. Browser receives `{ pending: true, requestId }` quickly.
-6. Browser polls a status endpoint until it receives `{ artifact, response }` or a failure.
-7. Background work updates the feedback log to `completed` or `failed`.
-8. Create a new artifact version only if the agent actually changed the artifact.
-9. Show only the agent's user-facing `response` in the chat, never raw model JSON.
-
-Model requirements:
-
-Use Claude through the Anthropic Messages API, or another model API with equivalent structured-output behavior. The model key must stay server-side.
-
-Ask the model to return JSON with this shape:
-
-{
-  "updateArtifact": boolean,
-  "artifact": LessonArtifact,
-  "response": "short response to the writer",
-  "summary": "version history summary"
-}
-
-Decision rules:
-
-- If the writer asks for ideas, critique, explanation, options, clarification, or planning, do not update the artifact. Set `updateArtifact` to false, return the original artifact unchanged, and offer to make a change if the writer chooses an option.
-- If the writer clearly asks to revise, apply, change, shorten, rewrite, add, remove, or otherwise alter the artifact, set `updateArtifact` to true and return the updated artifact.
-- Use recent chat history to resolve follow-ups such as "use idea #4".
-- When the writer asks for ideas/options, respond with a numbered list and concrete examples.
-- Format the user-facing response as short paragraphs and lists, not one long block.
-- Treat writer comments or inline annotations as requests from the writer.
-- Treat any agent status/rationale field as the agent's brief completion note.
-- If processing inline writer comments, clear processed comments and append a short `**Done:** ...` note to the agent status/rationale field when one exists.
-- Preserve IDs and assessment targets unless the writer explicitly asks to change them.
-- If `updateArtifact` is false, return the artifact exactly unchanged and set summary to "No lesson changes."
-
-Persist every writer request, model response, before/after version IDs, and status in a feedback log so the product team can analyze writer feedback and improve future prompts.
-```
-
-## Recommended API Pattern
-
-Use these generic routes, adapting names to the target app.
-
-```ts
-POST /api/artifacts/:artifactId/revise
-body: {
-  requestId: string;
-  prompt: string;
-  history: { role: "writer" | "agent"; content: string }[];
-}
-
-response:
-  202 { pending: true, requestId }
-  200 { artifact: LessonArtifact, response: string }
-  500 { error: string }
-```
-
-```ts
-GET /api/artifacts/:artifactId/revise-status?requestId=...
-
-response:
-  202 { pending: true, requestId }
-  200 { artifact: LessonArtifact, response: string }
-  500 { error: string }
-```
-
-```ts
-GET /api/agent-messages?contextId=...
-
-response:
-  ChatMessage[]
-```
-
-Optional note-processing command:
-
-```ts
-POST /api/artifacts/:artifactId/process-notes
-
-response:
-  { artifact: LessonArtifact; response: string }
-```
-
-The UI can route a plain-text command such as `process notes` to the note-processing endpoint. This keeps the panel simple: one text box for both chat and commands.
-
-## Initial Lesson Generation
-
-Initial generation is related to the chat agent, but it should be built as a separate server flow. The chat agent revises or discusses an existing artifact. Initial generation creates a new lesson artifact from a source context, such as a learning objective, knowledge component, standard, lesson brief, or teacher note.
+Initial generation creates a new lesson artifact from a source context. Build this as a dedicated server flow, not as a normal chat-panel revision request.
 
 Use this pattern when the writer clicks a button such as `Generate lesson`, `Generate activity`, or `Generate draft`.
 
@@ -231,7 +141,7 @@ Server responsibilities:
 - Log the request and final response as a `generation` feedback event.
 - Return only the user-facing response and saved artifact to the browser.
 
-Unlike revision, initial generation should not ask the model whether to update the artifact. There is no selected artifact to preserve. The model should always return a new artifact draft, unless the source context is too incomplete to write from. In that case, it should return a clear user-facing response asking for the missing source context rather than inventing it.
+Initial generation should not ask the model whether to update the artifact. There is no selected artifact to preserve. The model should always return a new artifact draft, unless the source context is too incomplete to write from. In that case, it should return a clear user-facing response asking for the missing source context rather than inventing it.
 
 Suggested generation JSON:
 
@@ -304,7 +214,118 @@ Web search can be useful during initial generation for hooks, real-world example
 
 After successful generation, show the model's rationale in the chat panel as the first agent message for that artifact or context. This makes the generation auditable and gives the writer something concrete to respond to, such as "use a different hook" or "make step 4 less wordy."
 
-## Model API
+## Use Case 2: Side-Panel Chat And Revision
+
+The side-panel agent helps a writer discuss or revise the currently selected lesson artifact. It should not create the first draft from scratch unless the product deliberately routes a generation command into this same panel.
+
+### Copyable Prompt For Another Coding Agent
+
+```text
+Build a right-side chat panel for a lesson-writing app.
+
+The panel is for a revision/planning agent that helps a writer discuss or revise the currently selected lesson artifact.
+
+UI requirements:
+
+1. Place the panel alongside the editor, usually on the right.
+2. Show a compact header with an eyebrow such as "Revision agent", title "Agent", and a message icon.
+3. Show a scrollable chat log.
+4. Render writer and agent messages with visually distinct bubble styles.
+5. Render markdown in messages: paragraphs, bold, numbered lists, bullet lists, inline code, and line breaks.
+6. Show empty-state text such as "Ask for revisions, ideas, or feedback."
+7. Show a working indicator while the agent is running. Start with "Thinking..." and optionally cycle through other short status labels.
+8. Keep the text-entry area fixed at the bottom of the panel.
+9. Use one textarea for all writer requests. Do not create separate request boxes unless the product has a clear workflow reason.
+10. Use a small send-icon button.
+11. Disable the panel when there is no selected artifact, when the selected artifact is locked/done, or while a request is running.
+
+Server/API requirements:
+
+1. Keep model and database secrets server-side.
+2. Browser sends a request with `{ requestId, prompt, history }`.
+3. Server logs the request with status `started`.
+4. Server starts model work in a background job or another long-running worker.
+5. Browser receives `{ pending: true, requestId }` quickly.
+6. Browser polls a status endpoint until it receives `{ artifact, response }` or a failure.
+7. Background work updates the feedback log to `completed` or `failed`.
+8. Create a new artifact version only if the agent actually changed the artifact.
+9. Show only the agent's user-facing `response` in the chat, never raw model JSON.
+
+Model requirements:
+
+Use Claude through the Anthropic Messages API, or another model API with equivalent structured-output behavior. The model key must stay server-side.
+
+Ask the model to return JSON with this shape:
+
+{
+  "updateArtifact": boolean,
+  "artifact": LessonArtifact,
+  "response": "short response to the writer",
+  "summary": "version history summary"
+}
+
+Decision rules:
+
+- If the writer asks for ideas, critique, explanation, options, clarification, or planning, do not update the artifact. Set `updateArtifact` to false, return the original artifact unchanged, and offer to make a change if the writer chooses an option.
+- If the writer clearly asks to revise, apply, change, shorten, rewrite, add, remove, or otherwise alter the artifact, set `updateArtifact` to true and return the updated artifact.
+- Use recent chat history to resolve follow-ups such as "use idea #4".
+- When the writer asks for ideas/options, respond with a numbered list and concrete examples.
+- Format the user-facing response as short paragraphs and lists, not one long block.
+- Treat writer comments or inline annotations as requests from the writer.
+- Treat any agent status/rationale field as the agent's brief completion note.
+- If processing inline writer comments, clear processed comments and append a short `**Done:** ...` note to the agent status/rationale field when one exists.
+- Preserve IDs and assessment targets unless the writer explicitly asks to change them.
+- If `updateArtifact` is false, return the artifact exactly unchanged and set summary to "No lesson changes."
+
+Persist every writer request, model response, before/after version IDs, and status in a feedback log so the product team can analyze writer feedback and improve future prompts.
+```
+
+### Recommended API Pattern
+
+Use these generic routes, adapting names to the target app.
+
+```ts
+POST /api/artifacts/:artifactId/revise
+body: {
+  requestId: string;
+  prompt: string;
+  history: { role: "writer" | "agent"; content: string }[];
+}
+
+response:
+  202 { pending: true, requestId }
+  200 { artifact: LessonArtifact, response: string }
+  500 { error: string }
+```
+
+```ts
+GET /api/artifacts/:artifactId/revise-status?requestId=...
+
+response:
+  202 { pending: true, requestId }
+  200 { artifact: LessonArtifact, response: string }
+  500 { error: string }
+```
+
+```ts
+GET /api/agent-messages?contextId=...
+
+response:
+  ChatMessage[]
+```
+
+Optional note-processing command:
+
+```ts
+POST /api/artifacts/:artifactId/process-notes
+
+response:
+  { artifact: LessonArtifact; response: string }
+```
+
+The UI can route a plain-text command such as `process notes` to the note-processing endpoint. This keeps the panel simple: one text box for both chat and commands.
+
+## Shared Model API
 
 Use Anthropic Messages API server-side:
 
@@ -332,7 +353,7 @@ tools: [
 
 Use web search only for requests that benefit from outside examples, research, or current references. Make it optional and retry without tools if the tool call fails.
 
-## Prompt Structure
+## Revision Prompt Structure
 
 Use a system prompt for role and domain rules:
 
@@ -389,11 +410,11 @@ Return JSON:
 If updateArtifact is false, artifact must be exactly the original artifact and summary should be "No lesson changes.".
 ```
 
-## Should The Agent Use JSON, Tools, Or Skills?
+## JSON, Tools, And Skills
 
 Use all three, with clear boundaries:
 
-- **JSON output:** Yes. Require structured JSON so the server can safely decide whether to update the lesson artifact and what message to show.
+- **JSON output:** Yes. Require structured JSON for both use cases. Generation returns a new artifact and rationale. Revision returns `updateArtifact`, the artifact, response, and summary.
 - **Tools:** Optional. Use web search or retrieval tools for research and examples. Do not require tools for normal revisions.
 - **Skills/context:** Yes. Include the product's lesson-writing guidelines in the system prompt. Do not assume the model has access to local files unless you explicitly send them.
 
@@ -442,6 +463,16 @@ When listing messages:
 
 ## Versioning Rules
 
+For initial generation:
+
+- Validate the generated artifact.
+- Create the new artifact record.
+- Create version 1 immediately.
+- Store `after_version_id` in the feedback log.
+- Store the rationale as the agent-visible response for the generation event.
+
+For revision:
+
 If the model returns `updateArtifact: true`:
 
 - Validate the updated artifact.
@@ -459,7 +490,7 @@ If the model returns `updateArtifact: false`:
 
 Add a parser fallback so malformed model output does not leak raw JSON. If parsing fails, extract a useful `response` string when possible and do not update the artifact.
 
-## UI Behavior
+## Side-Panel UI Behavior
 
 Panel layout:
 
@@ -525,10 +556,20 @@ Add:
 
 ## Minimal Implementation Checklist
 
+Initial generation:
+
+- [ ] Add a source-context-driven generation button or command.
+- [ ] Add `POST /api/contexts/:id/generate-artifact`.
+- [ ] Add `GET /api/contexts/:id/generate-artifact-status`.
+- [ ] Send source context, notes, constraints, and relevant recent history to the model.
+- [ ] Require generation JSON with a complete artifact plus rationale.
+- [ ] Create the artifact and version 1.
+- [ ] Store the generation rationale as the first agent-visible message for that context or artifact.
+
+Side-panel chat and revision:
+
 - [ ] Build chat panel with header, markdown chat log, working state, textarea, and send icon.
 - [ ] Store messages scoped to the selected lesson context.
-- [ ] Add an initial generation endpoint for creating the first artifact from source context.
-- [ ] Store the generation rationale as the first agent-visible message for that context or artifact.
 - [ ] Add `POST /api/artifacts/:id/revise`.
 - [ ] Add `GET /api/artifacts/:id/revise-status`.
 - [ ] Add background function or worker for model calls.
