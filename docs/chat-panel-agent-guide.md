@@ -47,6 +47,17 @@ type LessonPart = {
   agentNotes?: string;
 };
 
+type LessonSourceContext = {
+  id: string;
+  title?: string;
+  objective?: string;
+  condition?: string;
+  response?: string;
+  workedExample?: string;
+  writerNotes?: string;
+  standards?: { code: string; text: string }[];
+};
+
 type LessonArtifact = {
   id: string;
   parentId?: string;
@@ -62,6 +73,12 @@ type AgentRevisionResult = {
   artifact: LessonArtifact;
   response: string;
   summary: string;
+};
+
+type InitialGenerationResult = {
+  artifact: LessonArtifact;
+  response: string;
+  rationale: string[];
 };
 ```
 
@@ -173,6 +190,119 @@ response:
 ```
 
 The UI can route a plain-text command such as `process notes` to the note-processing endpoint. This keeps the panel simple: one text box for both chat and commands.
+
+## Initial Lesson Generation
+
+Initial generation is related to the chat agent, but it should be built as a separate server flow. The chat agent revises or discusses an existing artifact. Initial generation creates a new lesson artifact from a source context, such as a learning objective, knowledge component, standard, lesson brief, or teacher note.
+
+Use this pattern when the writer clicks a button such as `Generate lesson`, `Generate activity`, or `Generate draft`.
+
+```ts
+POST /api/contexts/:contextId/generate-artifact
+body: {
+  requestId: string;
+  history?: { role: "writer" | "agent"; content: string }[];
+}
+
+response:
+  202 { pending: true, requestId }
+  200 { artifact: LessonArtifact, response: string }
+  500 { error: string }
+```
+
+```ts
+GET /api/contexts/:contextId/generate-artifact-status?requestId=...
+
+response:
+  202 { pending: true, requestId }
+  200 { artifact: LessonArtifact, response: string }
+  500 { error: string }
+```
+
+Server responsibilities:
+
+- Load the source context from the database.
+- Load any existing artifacts for that context so the new artifact can get the next stable index or title.
+- Send the source context, writer notes, relevant standards, and recent chat history to the model.
+- Ask the model for one complete artifact plus a short rationale.
+- Validate the returned artifact.
+- Assign or verify stable IDs.
+- Create the artifact and its first immutable version.
+- Log the request and final response as a `generation` feedback event.
+- Return only the user-facing response and saved artifact to the browser.
+
+Unlike revision, initial generation should not ask the model whether to update the artifact. There is no selected artifact to preserve. The model should always return a new artifact draft, unless the source context is too incomplete to write from. In that case, it should return a clear user-facing response asking for the missing source context rather than inventing it.
+
+Suggested generation JSON:
+
+```json
+{
+  "title": "Lesson artifact title",
+  "rationale": [
+    "Short bullet explaining the hook.",
+    "Short bullet explaining the learning sequence.",
+    "Short bullet explaining interaction or assessment choices."
+  ],
+  "parts": [
+    {
+      "id": "stable-part-id",
+      "body": "Learner-facing text",
+      "interaction": "What the learner sees or does",
+      "targetResponse": "Expected response",
+      "hint": "Hint that suggests a next step without giving away the answer",
+      "writerNotes": "",
+      "agentNotes": ""
+    }
+  ]
+}
+```
+
+Suggested generation prompt template:
+
+```text
+Create one lesson artifact from this source context.
+
+Follow this lesson-writing guidance exactly:
+{LESSON_WRITING_SKILL_OR_GUIDELINES}
+
+Source context:
+{sourceContext as JSON}
+
+Writer notes:
+{writer notes or "None"}
+
+Relevant standards or constraints:
+{standards/constraints as JSON}
+
+Recent chat history for this context:
+{history as JSON}
+
+Return only valid JSON:
+{
+  "title": string,
+  "rationale": string[],
+  "parts": LessonPart[]
+}
+
+Requirements:
+- Generate a complete first draft, not a plan.
+- Use writer notes and recent chat history as intent/context, but do not quote them unless useful.
+- Focus directly on the target objective or skill. Do not spend the artifact teaching broad precursor skills, though one brief prerequisite reminder is allowed when critical.
+- Keep learner-facing language concise and age appropriate.
+- Use examples that fit the age group and avoid childish default contexts unless there is a clear reason.
+- Vary interaction types where the target product supports it.
+- Keep choice-only items limited when the product wants students to reason rather than guess.
+- Make hints tell the learner what step to take without doing the step for them.
+- Preserve any required ID format supplied by the app.
+- Set writerNotes and agentNotes to empty strings unless the product asks for generated notes.
+- Include 3-5 short rationale bullets explaining the hook, sequence, interaction choices, and fit to the guidance.
+```
+
+Use recent chat history differently here than in revision. For generation, history is background intent: it helps the model understand preferences, prior ideas, and constraints for this context. It is not a conversational turn that needs a direct answer unless the generation button is explicitly triggered from a chat command.
+
+Web search can be useful during initial generation for hooks, real-world examples, and brief context research. Keep it optional. If web search times out or fails, retry without tools and still generate a usable draft from the source context.
+
+After successful generation, show the model's rationale in the chat panel as the first agent message for that artifact or context. This makes the generation auditable and gives the writer something concrete to respond to, such as "use a different hook" or "make step 4 less wordy."
 
 ## Model API
 
@@ -301,6 +431,7 @@ Use the log for:
 - Debugging model failures.
 - Capturing writer feedback for future prompt/skill improvements.
 - Idempotency by `requestId`.
+- Showing the initial generation rationale alongside later chat messages.
 
 When listing messages:
 
@@ -396,6 +527,8 @@ Add:
 
 - [ ] Build chat panel with header, markdown chat log, working state, textarea, and send icon.
 - [ ] Store messages scoped to the selected lesson context.
+- [ ] Add an initial generation endpoint for creating the first artifact from source context.
+- [ ] Store the generation rationale as the first agent-visible message for that context or artifact.
 - [ ] Add `POST /api/artifacts/:id/revise`.
 - [ ] Add `GET /api/artifacts/:id/revise-status`.
 - [ ] Add background function or worker for model calls.
